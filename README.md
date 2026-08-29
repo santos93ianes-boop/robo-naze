@@ -1,14 +1,14 @@
-# ROBO MAZE — arquivo pronto para GitHub
+# ROBO MAZE V3
 
-## IMPORTANTE
-Este ZIP foi preparado para ser enviado com os arquivos na raiz do repositório.
+Versão com 30 níveis, labirintos maiores em estilo pedra, música de suspense em loop, 8 cores para o robô e escolha de controle.
 
-1. Apague os arquivos antigos do repositório ou crie um repositório novo.
-2. Extraia este ZIP.
-3. Em **Add file > Upload files**, envie TODO o conteúdo extraído, inclusive a pasta `.github`.
-4. Confirme o upload.
-5. Vá em **Actions > ROBO MAZE - GERAR APK > Run workflow**.
-6. Quando ficar verde, abra a execução e baixe **RoboMaze-APK**.
-7. Dentro dele estará `RoboMaze.apk`.
+## Controles disponíveis
+- Joystick virtual (padrão)
+- Deslizar / swipe
+- Setas na tela
+- Toque no corredor
 
-O workflow NÃO usa `./gradlew`, então não depende do arquivo `gradlew`.
+A preferência de controle, cor do robô e música ficam salvas no aparelho.
+
+## Gerar APK no GitHub
+Envie o conteúdo deste ZIP para a raiz do repositório. Vá em Actions > ROBO MAZE - GERAR APK > Run workflow. Ao finalizar em verde, baixe o artefato RoboMaze-APK.

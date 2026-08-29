@@ -25,13 +25,17 @@ import java.util.List;
 import java.util.Random;
 
 public class MainActivity extends Activity {
+    private RoboMazeView gameView;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        setContentView(new RoboMazeView(this));
+        gameView = new RoboMazeView(this);
+        setContentView(gameView);
     }
+    @Override protected void onResume(){ super.onResume(); if(gameView!=null) gameView.resumeMusic(); }
+    @Override protected void onPause(){ if(gameView!=null) gameView.pauseMusic(); super.onPause(); }
 }
 
 class RoboMazeView extends View {
@@ -43,7 +47,7 @@ class RoboMazeView extends View {
     private Bitmap cover;
     private MediaPlayer musicPlayer;
 
-    private enum Screen { MENU, LEVELS, GAME, RECORDS, HELP }
+    private enum Screen { MENU, LEVELS, GAME, RECORDS, SETTINGS }
     private Screen screen = Screen.MENU;
 
     private int level = 1;
@@ -54,6 +58,17 @@ class RoboMazeView extends View {
     private int lives = 3;
     private boolean paused = false;
     private boolean soundOn = true;
+    private int robotColorIndex = 0;
+    private int controlMode = 0; // 0 joystick, 1 swipe, 2 setas, 3 toque
+    private final String[] controlNames = {"JOYSTICK", "DESLIZAR", "SETAS", "TOQUE"};
+    private float touchStartX, touchStartY;
+    private boolean joystickActive = false;
+    private final int[] robotColors = {
+            Color.rgb(0,120,220), Color.rgb(230,55,55), Color.rgb(45,185,85),
+            Color.rgb(245,170,20), Color.rgb(150,75,210), Color.rgb(20,190,200),
+            Color.rgb(35,35,45), Color.rgb(240,240,240)
+    };
+    private final String[] robotColorNames = {"AZUL","VERMELHO","VERDE","AMARELO","ROXO","CIANO","PRETO","BRANCO"};
 
     private int rows, cols;
     private boolean[][] visited;
@@ -96,17 +111,32 @@ class RoboMazeView extends View {
         unlocked = prefs.getInt("unlocked", 1);
         bestLevel = prefs.getInt("bestLevel", 1);
         highScore = prefs.getInt("highScore", 0);
-        soundOn = prefs.getBoolean("sound", true);
+        int audioVersion = prefs.getInt("audioVersion", 0);
+        if (audioVersion < 2) {
+            soundOn = true;
+            prefs.edit().putBoolean("sound", true).putInt("audioVersion", 2).apply();
+        } else {
+            soundOn = prefs.getBoolean("sound", true);
+        }
+        robotColorIndex = prefs.getInt("robotColor", 0) % robotColors.length;
+        controlMode = Math.max(0, Math.min(3, prefs.getInt("controlMode", 0)));
         cover = BitmapFactory.decodeResource(getResources(), getResources().getIdentifier("robo_maze_cover", "drawable", context.getPackageName()));
         musicPlayer = MediaPlayer.create(context, getResources().getIdentifier("suspense_loop", "raw", context.getPackageName()));
         if (musicPlayer != null) {
             musicPlayer.setLooping(true);
-            musicPlayer.setVolume(0.38f, 0.38f);
+            musicPlayer.setVolume(0.68f, 0.68f);
             if (soundOn) musicPlayer.start();
         }
         stroke.setStyle(Paint.Style.STROKE);
         stroke.setStrokeCap(Paint.Cap.ROUND);
         handler.post(ticker);
+    }
+
+    void resumeMusic(){
+        if(soundOn && musicPlayer!=null && !musicPlayer.isPlaying()) musicPlayer.start();
+    }
+    void pauseMusic(){
+        if(musicPlayer!=null && musicPlayer.isPlaying()) musicPlayer.pause();
     }
 
     @Override protected void onDetachedFromWindow() {
@@ -123,34 +153,32 @@ class RoboMazeView extends View {
             case LEVELS: drawLevels(c); break;
             case GAME: drawGame(c); break;
             case RECORDS: drawRecords(c); break;
-            case HELP: drawHelp(c); break;
+            case SETTINGS: drawSettings(c); break;
         }
     }
 
     private void drawMenu(Canvas c) {
         float w = getWidth(), h = getHeight();
         if (cover != null) {
-            float size = Math.min(w * .72f, h * .40f);
-            RectF dst = new RectF((w-size)/2, h*.04f, (w+size)/2, h*.04f+size);
+            float size = Math.min(w * .68f, h * .35f);
+            RectF dst = new RectF((w-size)/2, h*.025f, (w+size)/2, h*.025f+size);
             c.drawBitmap(cover, null, dst, p);
         }
         p.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
         p.setTextAlign(Paint.Align.CENTER);
-        p.setColor(Color.WHITE);
-        p.setTextSize(w*.082f);
-        c.drawText("ROBO MAZE", w/2, h*.48f, p);
-        p.setColor(Color.rgb(255, 205, 30));
-        p.setTextSize(w*.035f);
-        c.drawText("DESVIE • COLETE • VENÇA!", w/2, h*.515f, p);
+        p.setColor(Color.WHITE); p.setTextSize(w*.078f);
+        c.drawText("ROBO MAZE", w/2, h*.43f, p);
+        p.setColor(Color.rgb(255,205,30)); p.setTextSize(w*.033f);
+        c.drawText("DESVIE • COLETE • VENÇA!", w/2, h*.465f, p);
 
-        drawMenuButton(c, "▶  JOGAR", h*.56f, Color.rgb(255,170,0));
-        drawMenuButton(c, "▦  NÍVEIS", h*.655f, Color.rgb(0,155,235));
-        drawMenuButton(c, "★  RECORDES", h*.75f, Color.rgb(0,125,220));
-        drawMenuButton(c, "?  COMO JOGAR", h*.845f, Color.rgb(20,105,190));
+        drawMenuButton(c, "▶  JOGAR", h*.525f, Color.rgb(255,160,0));
+        drawMenuButton(c, "▦  NÍVEIS", h*.615f, Color.rgb(0,150,225));
+        drawMenuButton(c, "★  RECORDES", h*.705f, Color.rgb(0,120,215));
+        drawMenuButton(c, "⚙  CONFIGURAÇÕES", h*.795f, Color.rgb(30,95,175));
 
-        p.setTextSize(w*.033f);
-        p.setColor(Color.WHITE);
-        c.drawText(soundOn ? "🔊 SOM LIGADO" : "🔇 SOM DESLIGADO", w/2, h*.965f, p);
+        p.setTextSize(w*.031f); p.setColor(Color.WHITE);
+        c.drawText("CONTROLE: " + controlNames[controlMode], w/2, h*.885f, p);
+        c.drawText("ROBÔ: " + robotColorNames[robotColorIndex] + "   •   " + (soundOn?"♫ MÚSICA ON":"♫ MÚSICA OFF"), w/2, h*.935f, p);
     }
 
     private void drawMenuButton(Canvas c, String text, float cy, int color) {
@@ -194,15 +222,25 @@ class RoboMazeView extends View {
         p.setTextSize(w*.038f); p.setColor(Color.LTGRAY); c.drawText("Continue jogando para superar seu recorde!",w/2,h*.76f,p);
     }
 
-    private void drawHelp(Canvas c) {
+    private void drawSettings(Canvas c) {
         float w=getWidth(),h=getHeight();
-        drawHeader(c,"COMO JOGAR");
-        p.setTextAlign(Paint.Align.LEFT); p.setTypeface(android.graphics.Typeface.DEFAULT_BOLD); p.setTextSize(w*.052f); p.setColor(Color.rgb(255,205,30));
-        c.drawText("MISSÃO",w*.08f,h*.24f,p);
-        p.setTypeface(android.graphics.Typeface.DEFAULT); p.setTextSize(w*.041f); p.setColor(Color.WHITE);
-        String[] lines={"Use as 4 setas para mover o robô pelo labirinto.","Colete todas as moedas douradas para abrir a saída.","Evite os inimigos: encostar neles custa uma vida.","Você começa com 3 vidas em cada fase.","A dificuldade aumenta gradualmente até o nível 30."};
-        float y=h*.31f;
-        for(String s: lines){ drawWrapped(c,s,w*.08f,y,w*.84f,w*.041f); y+=h*.10f; }
+        drawHeader(c,"CONFIGURAÇÕES");
+        p.setTextAlign(Paint.Align.CENTER); p.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        p.setColor(Color.rgb(255,205,30)); p.setTextSize(w*.052f); c.drawText("ESCOLHA O CONTROLE",w/2,h*.19f,p);
+        String[] labels={"JOYSTICK VIRTUAL","DESLIZAR (SWIPE)","SETAS NA TELA","TOQUE NO DESTINO"};
+        int[] colors={Color.rgb(0,155,210),Color.rgb(30,170,95),Color.rgb(145,70,190),Color.rgb(230,135,25)};
+        for(int i=0;i<4;i++){
+            float cy=h*(.27f+i*.105f); RectF r=new RectF(w*.10f,cy-h*.035f,w*.90f,cy+h*.035f);
+            p.setColor(i==controlMode?colors[i]:Color.rgb(30,50,82)); c.drawRoundRect(r,18,18,p);
+            stroke.setColor(i==controlMode?Color.WHITE:Color.rgb(75,105,145)); stroke.setStrokeWidth(i==controlMode?4:2); c.drawRoundRect(r,18,18,stroke);
+            p.setColor(Color.WHITE); p.setTextSize(w*.039f); c.drawText((i==controlMode?"✓  ":"")+labels[i],w/2,cy+p.getTextSize()*.34f,p);
+        }
+        p.setColor(Color.rgb(255,205,30)); p.setTextSize(w*.046f); c.drawText("PERSONALIZAÇÃO",w/2,h*.71f,p);
+        RectF color=new RectF(w*.12f,h*.75f,w*.88f,h*.815f); p.setColor(robotColors[robotColorIndex]); c.drawRoundRect(color,18,18,p);
+        p.setColor(robotColorIndex==7?Color.DKGRAY:Color.WHITE); p.setTextSize(w*.038f); c.drawText("COR DO ROBÔ: "+robotColorNames[robotColorIndex]+"  ›",w/2,h*.792f,p);
+        RectF music=new RectF(w*.12f,h*.84f,w*.88f,h*.905f); p.setColor(soundOn?Color.rgb(45,170,85):Color.rgb(105,115,135)); c.drawRoundRect(music,18,18,p);
+        p.setColor(Color.WHITE); c.drawText(soundOn?"♫ MÚSICA DE SUSPENSE: LIGADA":"♫ MÚSICA: DESLIGADA",w/2,h*.882f,p);
+        p.setColor(Color.LTGRAY); p.setTextSize(w*.029f); c.drawText("A escolha fica salva automaticamente.",w/2,h*.96f,p);
     }
 
     private void drawHeader(Canvas c,String title){
@@ -223,7 +261,8 @@ class RoboMazeView extends View {
     private void startLevel(int n){
         level=Math.max(1,Math.min(30,n)); score=Math.max(0,score); lives=3; paused=false;
         int tier=(level-1)/5;
-        rows=Math.min(15,7+tier*2); cols=Math.min(13,7+tier);
+        rows=Math.min(21,9+tier*2);
+        cols=Math.min(19,9+tier*2);
         if(rows%2==0) rows++; if(cols%2==0) cols++;
         generateMaze(rows,cols,level*9973L);
         playerR=0; playerC=0; startR=0; startC=0; exitR=rows-1; exitC=cols-1;
@@ -257,7 +296,7 @@ class RoboMazeView extends View {
 
     private void placeCoins(){
         coins=new boolean[rows][cols]; remainingCoins=0;
-        int desired=Math.min(4+level/2,12);
+        int desired=Math.min(6+level/2,18);
         Random rng=new Random(level*31337L);
         while(remainingCoins<desired){
             int r=rng.nextInt(rows), c=rng.nextInt(cols);
@@ -286,45 +325,67 @@ class RoboMazeView extends View {
         p.setTextAlign(Paint.Align.RIGHT); p.setTextSize(w*.052f); p.setColor(Color.rgb(235,45,45)); c.drawText("♥".repeat(Math.max(0,lives)),w*.83f,h*.065f,p);
         pauseBtn.set(w*.88f,h*.018f,w*.97f,h*.087f); p.setColor(Color.rgb(0,125,220)); c.drawOval(pauseBtn,p); p.setColor(Color.WHITE); p.setTextAlign(Paint.Align.CENTER); p.setTextSize(w*.045f); c.drawText(paused?"▶":"Ⅱ",pauseBtn.centerX(),pauseBtn.centerY()+p.getTextSize()*.34f,p);
 
-        float top=h*.12f,bottom=h*.72f,left=w*.055f,right=w*.945f;
+        float top=h*.105f,bottom=h*.945f,left=w*.018f,right=w*.982f;
         float cell=Math.min((right-left)/cols,(bottom-top)/rows);
         float bw=cell*cols,bh=cell*rows; float bx=(w-bw)/2, by=top+(bottom-top-bh)/2;
         boardRect.set(bx,by,bx+bw,by+bh);
-        p.setColor(Color.WHITE); c.drawRoundRect(new RectF(bx-8,by-8,bx+bw+8,by+bh+8),18,18,p);
-        stroke.setColor(Color.rgb(15,145,225)); stroke.setStrokeWidth(Math.max(3,cell*.08f));
+        p.setColor(Color.rgb(18,28,34)); c.drawRoundRect(new RectF(bx-8,by-8,bx+bw+8,by+bh+8),18,18,p);
+        p.setColor(Color.rgb(27,39,42)); c.drawRect(bx,by,bx+bw,by+bh,p);
+        // Piso quadriculado discreto, como um labirinto de pedra.
+        stroke.setColor(Color.argb(35,180,210,190)); stroke.setStrokeWidth(1);
+        for(int r=0;r<=rows;r++) c.drawLine(bx,by+r*cell,bx+bw,by+r*cell,stroke);
+        for(int cc=0;cc<=cols;cc++) c.drawLine(bx+cc*cell,by,bx+cc*cell,by+bh,stroke);
+        // Paredes grossas de pedra.
+        stroke.setStrokeCap(Paint.Cap.SQUARE); stroke.setColor(Color.rgb(82,98,78)); stroke.setStrokeWidth(Math.max(7,cell*.22f));
         for(int r=0;r<rows;r++) for(int cc=0;cc<=cols;cc++) if(vWalls[r][cc]) c.drawLine(bx+cc*cell,by+r*cell,bx+cc*cell,by+(r+1)*cell,stroke);
         for(int rr=0;rr<=rows;rr++) for(int cc=0;cc<cols;cc++) if(hWalls[rr][cc]) c.drawLine(bx+cc*cell,by+rr*cell,bx+(cc+1)*cell,by+rr*cell,stroke);
+        stroke.setColor(Color.rgb(132,145,108)); stroke.setStrokeWidth(Math.max(2,cell*.055f));
+        for(int r=0;r<rows;r++) for(int cc=0;cc<=cols;cc++) if(vWalls[r][cc]) c.drawLine(bx+cc*cell-cell*.045f,by+r*cell,bx+cc*cell-cell*.045f,by+(r+1)*cell,stroke);
+        for(int rr=0;rr<=rows;rr++) for(int cc=0;cc<cols;cc++) if(hWalls[rr][cc]) c.drawLine(bx+cc*cell,by+rr*cell-cell*.045f,bx+(cc+1)*cell,by+rr*cell-cell*.045f,stroke);
+        stroke.setStrokeCap(Paint.Cap.ROUND);
 
         for(int r=0;r<rows;r++) for(int cc=0;cc<cols;cc++){
             float cx=bx+(cc+.5f)*cell, cy=by+(r+.5f)*cell;
-            p.setColor(Color.rgb(120,205,245)); c.drawCircle(cx,cy,Math.max(1.7f,cell*.045f),p);
-            if(coins[r][cc]){ p.setColor(Color.rgb(255,184,0)); c.drawCircle(cx,cy,cell*.20f,p); p.setColor(Color.rgb(255,225,75)); c.drawCircle(cx,cy,cell*.11f,p); }
+            p.setColor(Color.rgb(75,95,88)); c.drawCircle(cx,cy,Math.max(1.2f,cell*.028f),p);
+            if(coins[r][cc]){ p.setColor(Color.rgb(255,170,0)); c.drawCircle(cx,cy,cell*.18f,p); p.setColor(Color.rgb(255,225,65)); c.drawCircle(cx,cy,cell*.095f,p); }
         }
-        // Exit
         float ex=bx+(exitC+.5f)*cell, ey=by+(exitR+.5f)*cell;
-        p.setColor(remainingCoins==0?Color.rgb(55,205,80):Color.rgb(120,130,150)); c.drawCircle(ex,ey,cell*.24f,p);
+        p.setColor(remainingCoins==0?Color.rgb(80,245,80):Color.rgb(70,105,75)); c.drawCircle(ex,ey,cell*.25f,p);
+        if(remainingCoins==0){ stroke.setColor(Color.rgb(120,255,120)); stroke.setStrokeWidth(cell*.08f); c.drawCircle(ex,ey,cell*.32f,stroke); }
         p.setColor(Color.WHITE); p.setTextAlign(Paint.Align.CENTER); p.setTextSize(cell*.34f); c.drawText("★",ex,ey+p.getTextSize()*.35f,p);
 
         for(Enemy e:enemies) drawEnemy(c,bx+(e.c+.5f)*cell,by+(e.r+.5f)*cell,cell,e.kind);
         drawRobot(c,bx+(playerC+.5f)*cell,by+(playerR+.5f)*cell,cell);
 
-        float cy=h*.845f, radius=Math.min(w*.095f,h*.06f), gap=w*.03f;
-        float total=radius*8+gap*3, sx=(w-total)/2+radius;
-        leftBtn.set(sx-radius,cy-radius,sx+radius,cy+radius);
-        rightBtn.set(sx+2*radius+gap-radius,cy-radius,sx+2*radius+gap+radius,cy+radius);
-        upBtn.set(sx+4*radius+2*gap-radius,cy-radius,sx+4*radius+2*gap+radius,cy+radius);
-        downBtn.set(sx+6*radius+3*gap-radius,cy-radius,sx+6*radius+3*gap+radius,cy+radius);
-        drawControl(c,leftBtn,0); drawControl(c,rightBtn,1); drawControl(c,upBtn,2); drawControl(c,downBtn,3);
-        p.setColor(Color.rgb(4,37,93)); p.setTextAlign(Paint.Align.CENTER); p.setTextSize(w*.032f); p.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        c.drawText("MOEDAS: "+remainingCoins, w/2,h*.955f,p);
+        // Controles ficam sobrepostos para deixar o labirinto maior.
+        float radius=Math.min(w*.095f,h*.055f);
+        if(controlMode==0){
+            float jx=w*.15f,jy=h*.84f; leftBtn.set(jx-radius,jy-radius,jx+radius,jy+radius);
+            p.setColor(Color.argb(155,10,25,42)); c.drawCircle(jx,jy,radius,p); stroke.setColor(Color.argb(210,80,220,255)); stroke.setStrokeWidth(3); c.drawCircle(jx,jy,radius,stroke);
+            p.setColor(Color.argb(225,185,220,230)); c.drawCircle(jx,jy,radius*.43f,p);
+            p.setColor(Color.WHITE); p.setTextSize(w*.026f); c.drawText("JOYSTICK",jx,jy+radius*1.45f,p);
+        } else if(controlMode==2){
+            float cy=h*.855f, rr=Math.min(w*.065f,h*.04f), cx=w*.17f;
+            leftBtn.set(cx-rr*2.25f-rr,cy-rr,cx-rr*2.25f+rr,cy+rr); rightBtn.set(cx+rr*2.25f-rr,cy-rr,cx+rr*2.25f+rr,cy+rr);
+            upBtn.set(cx-rr,cy-rr*2.25f-rr,cx+rr,cy-rr*2.25f+rr); downBtn.set(cx-rr,cy+rr*2.25f-rr,cx+rr,cy+rr*2.25f+rr);
+            drawControl(c,leftBtn,0); drawControl(c,rightBtn,1); drawControl(c,upBtn,2); drawControl(c,downBtn,3);
+        } else {
+            p.setColor(Color.argb(175,5,25,45)); RectF tip=new RectF(w*.05f,h*.89f,w*.55f,h*.935f); c.drawRoundRect(tip,14,14,p);
+            p.setColor(Color.WHITE); p.setTextSize(w*.026f); c.drawText(controlMode==1?"DESLIZE PARA MOVER":"TOQUE NO CORREDOR",tip.centerX(),tip.centerY()+p.getTextSize()*.34f,p);
+        }
+        p.setColor(Color.WHITE); p.setTextAlign(Paint.Align.RIGHT); p.setTextSize(w*.028f); p.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        c.drawText("MOEDAS: "+remainingCoins, w*.96f,h*.93f,p);
         if(paused){ p.setColor(Color.argb(190,3,25,70)); c.drawRect(0,h*.1f,w,h,p); p.setColor(Color.WHITE); p.setTextSize(w*.085f); c.drawText("PAUSADO",w/2,h*.48f,p); p.setTextSize(w*.038f); c.drawText("Toque em ▶ para continuar",w/2,h*.55f,p); }
     }
 
     private void drawRobot(Canvas c,float x,float y,float cell){
-        p.setColor(Color.WHITE); c.drawCircle(x,y,cell*.27f,p);
-        p.setColor(Color.rgb(20,75,130)); c.drawRoundRect(new RectF(x-cell*.19f,y-cell*.12f,x+cell*.19f,y+cell*.11f),cell*.08f,cell*.08f,p);
-        p.setColor(Color.CYAN); c.drawCircle(x-cell*.08f,y-cell*.01f,cell*.035f,p); c.drawCircle(x+cell*.08f,y-cell*.01f,cell*.035f,p);
-        p.setColor(Color.rgb(0,120,220)); c.drawCircle(x,y-cell*.31f,cell*.045f,p); c.drawRect(x-cell*.015f,y-cell*.29f,x+cell*.015f,y-cell*.23f,p);
+        int bodyColor = robotColors[robotColorIndex];
+        p.setColor(bodyColor); c.drawCircle(x,y,cell*.29f,p);
+        p.setColor(Color.WHITE); c.drawCircle(x,y,cell*.22f,p);
+        p.setColor(Color.rgb(20,35,60)); c.drawRoundRect(new RectF(x-cell*.18f,y-cell*.11f,x+cell*.18f,y+cell*.10f),cell*.07f,cell*.07f,p);
+        p.setColor(Color.CYAN); c.drawCircle(x-cell*.075f,y-cell*.01f,cell*.034f,p); c.drawCircle(x+cell*.075f,y-cell*.01f,cell*.034f,p);
+        p.setColor(bodyColor); c.drawCircle(x,y-cell*.32f,cell*.05f,p); c.drawRect(x-cell*.018f,y-cell*.30f,x+cell*.018f,y-cell*.23f,p);
+        stroke.setColor(Color.argb(170,0,0,0)); stroke.setStrokeWidth(Math.max(1.5f,cell*.025f)); c.drawCircle(x,y,cell*.29f,stroke);
     }
     private void drawEnemy(Canvas c,float x,float y,float cell,int kind){
         int[] colors={Color.rgb(235,55,55),Color.rgb(145,60,200),Color.rgb(20,185,235),Color.rgb(245,145,20),Color.rgb(70,190,65)};
@@ -369,31 +430,46 @@ class RoboMazeView extends View {
         score+=500+level*50; bestLevel=Math.max(bestLevel,level); highScore=Math.max(highScore,score); if(level<30)unlocked=Math.max(unlocked,level+1); saveRecords();
         if(level<30) startLevel(level+1); else screen=Screen.RECORDS;
     }
-    private void saveRecords(){ prefs.edit().putInt("unlocked",unlocked).putInt("bestLevel",bestLevel).putInt("highScore",highScore).putBoolean("sound",soundOn).apply(); }
+    private void saveRecords(){ prefs.edit().putInt("unlocked",unlocked).putInt("bestLevel",bestLevel).putInt("highScore",highScore).putBoolean("sound",soundOn).putInt("robotColor",robotColorIndex).putInt("controlMode",controlMode).apply(); }
 
     @Override public boolean onTouchEvent(MotionEvent event){
-        if(event.getAction()!=MotionEvent.ACTION_UP)return true; float x=event.getX(),y=event.getY(); float h=getHeight(),w=getWidth();
-        if(screen==Screen.MENU){
-            if(y>h*.525f&&y<h*.61f){score=0;startLevel(Math.min(unlocked,30));}
-            else if(y>h*.615f&&y<h*.70f){screen=Screen.LEVELS;invalidate();}
-            else if(y>h*.705f&&y<h*.80f){screen=Screen.RECORDS;invalidate();}
-            else if(y>h*.80f&&y<h*.90f){screen=Screen.HELP;invalidate();}
-            else if(y>h*.925f){
-                soundOn=!soundOn;
-                if(musicPlayer!=null){ if(soundOn){ if(!musicPlayer.isPlaying())musicPlayer.start(); } else if(musicPlayer.isPlaying()) musicPlayer.pause(); }
-                saveRecords();invalidate();
-            }
+        float x=event.getX(),y=event.getY(); float h=getHeight(),w=getWidth();
+        if(screen==Screen.MENU && event.getAction()==MotionEvent.ACTION_UP){
+            if(y>h*.485f&&y<h*.565f){score=0;startLevel(Math.min(unlocked,30));}
+            else if(y>h*.575f&&y<h*.655f){screen=Screen.LEVELS;invalidate();}
+            else if(y>h*.665f&&y<h*.745f){screen=Screen.RECORDS;invalidate();}
+            else if(y>h*.755f&&y<h*.835f){screen=Screen.SETTINGS;invalidate();}
             return true;
         }
-        if((screen==Screen.LEVELS||screen==Screen.RECORDS||screen==Screen.HELP)&&y<h*.12f&&x<w*.20f){screen=Screen.MENU;invalidate();return true;}
-        if(screen==Screen.LEVELS){
+        if((screen==Screen.LEVELS||screen==Screen.RECORDS||screen==Screen.SETTINGS)&&event.getAction()==MotionEvent.ACTION_UP&&y<h*.12f&&x<w*.20f){screen=Screen.MENU;invalidate();return true;}
+        if(screen==Screen.SETTINGS && event.getAction()==MotionEvent.ACTION_UP){
+            for(int i=0;i<4;i++){ float cy=h*(.27f+i*.105f); if(y>cy-h*.045f&&y<cy+h*.045f){controlMode=i;saveRecords();invalidate();return true;} }
+            if(y>h*.74f&&y<h*.825f){robotColorIndex=(robotColorIndex+1)%robotColors.length;saveRecords();invalidate();return true;}
+            if(y>h*.825f&&y<h*.92f){soundOn=!soundOn;if(musicPlayer!=null){if(soundOn){if(!musicPlayer.isPlaying())musicPlayer.start();}else if(musicPlayer.isPlaying())musicPlayer.pause();}saveRecords();invalidate();return true;}
+        }
+        if(screen==Screen.LEVELS && event.getAction()==MotionEvent.ACTION_UP){
             int columns=5; float gap=w*.025f, cell=(w-gap*(columns+1))/columns, top=h*.18f;
             for(int i=1;i<=30;i++){int rr=(i-1)/columns,cc=(i-1)%columns;float bx=gap+cc*(cell+gap),by=top+rr*(cell+gap);if(x>=bx&&x<=bx+cell&&y>=by&&y<=by+cell&&i<=unlocked){score=0;startLevel(i);return true;}}
         }
-        if(screen==Screen.GAME){
+        if(screen!=Screen.GAME)return true;
+        if(event.getAction()==MotionEvent.ACTION_DOWN){
             if(pauseBtn.contains(x,y)){paused=!paused;invalidate();return true;}
             if(paused)return true;
-            if(leftBtn.contains(x,y))movePlayer(0,-1); else if(rightBtn.contains(x,y))movePlayer(0,1); else if(upBtn.contains(x,y))movePlayer(-1,0); else if(downBtn.contains(x,y))movePlayer(1,0);
+            touchStartX=x; touchStartY=y; joystickActive=(controlMode==0 && x<w*.32f && y>h*.70f); return true;
+        }
+        if(paused)return true;
+        if(controlMode==0 && joystickActive && event.getAction()==MotionEvent.ACTION_MOVE){
+            float dx=x-touchStartX,dy=y-touchStartY; float threshold=Math.min(w,h)*.045f;
+            if(Math.abs(dx)>threshold||Math.abs(dy)>threshold){ if(Math.abs(dx)>Math.abs(dy))movePlayer(0,dx>0?1:-1);else movePlayer(dy>0?1:-1,0); touchStartX=x;touchStartY=y; } return true;
+        }
+        if(event.getAction()==MotionEvent.ACTION_UP){
+            if(controlMode==0){ joystickActive=false; float dx=x-touchStartX,dy=y-touchStartY; if(Math.abs(dx)>8||Math.abs(dy)>8){if(Math.abs(dx)>Math.abs(dy))movePlayer(0,dx>0?1:-1);else movePlayer(dy>0?1:-1,0);} }
+            else if(controlMode==1){ float dx=x-touchStartX,dy=y-touchStartY; float threshold=Math.min(w,h)*.04f; if(Math.abs(dx)>threshold||Math.abs(dy)>threshold){if(Math.abs(dx)>Math.abs(dy))movePlayer(0,dx>0?1:-1);else movePlayer(dy>0?1:-1,0);} }
+            else if(controlMode==2){ if(leftBtn.contains(x,y))movePlayer(0,-1); else if(rightBtn.contains(x,y))movePlayer(0,1); else if(upBtn.contains(x,y))movePlayer(-1,0); else if(downBtn.contains(x,y))movePlayer(1,0); }
+            else if(controlMode==3 && boardRect.contains(x,y)){
+                float cell=boardRect.width()/cols; int tc=Math.max(0,Math.min(cols-1,(int)((x-boardRect.left)/cell))); int tr=Math.max(0,Math.min(rows-1,(int)((y-boardRect.top)/cell)));
+                int dr=tr-playerR,dc=tc-playerC; if(Math.abs(dc)>=Math.abs(dr)&&dc!=0)movePlayer(0,dc>0?1:-1); else if(dr!=0)movePlayer(dr>0?1:-1,0);
+            }
         }
         return true;
     }
