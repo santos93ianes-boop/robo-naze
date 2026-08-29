@@ -1,13 +1,14 @@
-# ROBO MAZE
+# ROBO MAZE — arquivo pronto para GitHub
 
-Projeto Android pronto para gerar APK no GitHub Actions.
+## IMPORTANTE
+Este ZIP foi preparado para ser enviado com os arquivos na raiz do repositório.
 
-## Importante
-O workflow correto está em `.github/workflows/main.yml` e **não usa `gradlew`**. Ele instala o Gradle 8.7 diretamente no GitHub Actions, evitando o erro `chmod: cannot access 'gradlew': No such file or directory`.
+1. Apague os arquivos antigos do repositório ou crie um repositório novo.
+2. Extraia este ZIP.
+3. Em **Add file > Upload files**, envie TODO o conteúdo extraído, inclusive a pasta `.github`.
+4. Confirme o upload.
+5. Vá em **Actions > ROBO MAZE - GERAR APK > Run workflow**.
+6. Quando ficar verde, abra a execução e baixe **RoboMaze-APK**.
+7. Dentro dele estará `RoboMaze.apk`.
 
-## Como gerar
-1. Envie **o conteúdo desta pasta** para a raiz do repositório GitHub (não envie apenas o ZIP como um arquivo).
-2. Confirme que existe `.github/workflows/main.yml` no repositório.
-3. Vá em **Actions > Build ROBO MAZE APK > Run workflow**.
-4. Quando ficar verde, abra a execução e baixe o artefato **RoboMaze-APK**.
-5. Dentro dele estará `RoboMaze.apk`.
+O workflow NÃO usa `./gradlew`, então não depende do arquivo `gradlew`.
