@@ -1,0 +1,10 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.RoboMaze" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:navigationBarColor">#06152F</item>
+        <item name="android:statusBarColor">#06152F</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

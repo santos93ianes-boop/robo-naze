@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
+  <meta name="theme-color" content="#071a3a"/>
+  <title>ROBO MAZE</title>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <main id="app">
+    <section id="startScreen" class="screen active">
+      <div class="hero">
+        <img class="cover" src="assets/robo-maze-cover.png" alt="ROBO MAZE" onerror="this.style.display='none'"/>
+        <h1>ROBO <span>MAZE</span></h1>
+        <p>Labirinto • Ação • Diversão</p>
+        <button id="playBtn" class="primary">JOGAR</button>
+        <button id="continueBtn" class="secondary">CONTINUAR</button>
+        <button id="settingsBtn" class="ghost">CONFIGURAÇÕES</button>
+      </div>
+    </section>
+
+    <section id="gameScreen" class="screen">
+      <header class="hud">
+        <div>⭐ <b id="score">0</b></div>
+        <div class="center"><b id="levelText">NÍVEL 1</b><small id="difficulty">TREINO</small></div>
+        <div>❤️ <b id="lives">3</b></div>
+        <button id="pauseBtn" aria-label="Pausar">⏸</button>
+      </header>
+
+      <div class="canvasWrap">
+        <canvas id="game" width="720" height="720" aria-label="Jogo ROBO MAZE"></canvas>
+        <div id="toast"></div>
+      </div>
+
+      <div class="stats">
+        <div>🪙 <span id="coins">0/0</span></div>
+        <div>⭐ <span id="stars">0</span></div>
+        <div>⚡ <span id="power">—</span></div>
+      </div>
+
+      <div class="controls">
+        <button data-dir="left">◀</button>
+        <button data-dir="right">▶</button>
+        <button data-dir="up">▲</button>
+        <button data-dir="down">▼</button>
+      </div>
+      <p class="tip">Use os botões, teclado ou deslize no labirinto.</p>
+    </section>
+
+    <section id="pauseScreen" class="modal hidden">
+      <div class="card">
+        <h2>JOGO PAUSADO</h2>
+        <button id="resumeBtn" class="primary">CONTINUAR</button>
+        <button id="restartBtn" class="secondary">REINICIAR FASE</button>
+        <button id="homeBtn" class="ghost">MENU</button>
+      </div>
+    </section>
+
+    <section id="resultScreen" class="modal hidden">
+      <div class="card">
+        <h2 id="resultTitle">FASE CONCLUÍDA!</h2>
+        <div class="bigStars" id="resultStars">⭐⭐⭐</div>
+        <p id="resultInfo"></p>
+        <button id="nextBtn" class="primary">PRÓXIMA FASE</button>
+        <button id="resultHomeBtn" class="ghost">MENU</button>
+      </div>
+    </section>
+
+    <section id="settingsScreen" class="modal hidden">
+      <div class="card">
+        <h2>CONFIGURAÇÕES</h2>
+        <label><input id="soundToggle" type="checkbox" checked> Som</label>
+        <label><input id="vibrationToggle" type="checkbox" checked> Vibração</label>
+        <label><input id="swipeToggle" type="checkbox" checked> Controle por deslize</label>
+        <button id="closeSettingsBtn" class="primary">FECHAR</button>
+      </div>
+    </section>
+  </main>
+  <script src="game.js"></script>
+</body>
+</html>
