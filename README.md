@@ -1,16 +1,13 @@
-# Robo Maze
+# ROBO MAZE
 
-Jogo Android de labirinto com dificuldade progressiva, 30 níveis, vidas, moedas, inimigos, recordes e seleção de fases.
+Projeto Android pronto para gerar APK no GitHub Actions.
 
-## Gerar o APK no GitHub
-1. Crie um repositório novo no GitHub.
-2. Envie **todo o conteúdo deste ZIP para a raiz do repositório**.
-3. Abra a aba **Actions**.
-4. Entre em **Build Robo Maze APK** e clique em **Run workflow** (ou faça um commit na branch main).
-5. Quando o processo ficar verde, abra a execução e baixe o artefato **RoboMaze-APK**.
-6. Dentro dele estará `app-debug.apk`, pronto para instalar no Android.
+## Importante
+O workflow correto está em `.github/workflows/main.yml` e **não usa `gradlew`**. Ele instala o Gradle 8.7 diretamente no GitHub Actions, evitando o erro `chmod: cannot access 'gradlew': No such file or directory`.
 
-> Este projeto não usa Gradle Wrapper de propósito. O workflow instala a versão correta do Gradle automaticamente, reduzindo problemas com `gradle-wrapper.jar`.
-
-## Música
-Esta versão inclui trilha instrumental original de suspense/arcade em loop durante o jogo. O botão SOM no menu liga/desliga a trilha e a preferência fica salva no aparelho.
+## Como gerar
+1. Envie **o conteúdo desta pasta** para a raiz do repositório GitHub (não envie apenas o ZIP como um arquivo).
+2. Confirme que existe `.github/workflows/main.yml` no repositório.
+3. Vá em **Actions > Build ROBO MAZE APK > Run workflow**.
+4. Quando ficar verde, abra a execução e baixe o artefato **RoboMaze-APK**.
+5. Dentro dele estará `RoboMaze.apk`.
