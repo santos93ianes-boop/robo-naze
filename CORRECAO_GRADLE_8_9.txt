@@ -1,0 +1,3 @@
+ROBO MAZE - correção de build
+Gradle atualizado de 8.7 para 8.9 conforme erro exibido no GitHub Actions.
+Envie o CONTEÚDO deste pacote para a raiz do repositório e execute o workflow novamente.
