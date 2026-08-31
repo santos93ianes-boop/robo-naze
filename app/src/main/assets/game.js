@@ -53,13 +53,30 @@ function generateMaze(seed){
     const a=dirIndex(dr,dc), b=(a+2)%4;
     m[r][c].w[a]=0; m[nr][nc].w[b]=0; m[nr][nc].v=true; stack.push([nr,nc]);
   }
-  // create extra loops as levels rise
-  const extra = Math.min(0.23, level*0.0025);
+  // Mais rotas de fuga: cria loops e cruzamentos extras em todas as fases.
+  // O jogo continua ficando difícil pelos inimigos, velocidade e tamanho do mapa,
+  // mas o jogador quase sempre tem mais de uma rota para escapar.
+  const escapeBase = level <= 10 ? 0.24 : level <= 25 ? 0.22 : level <= 40 ? 0.20 : level <= 60 ? 0.18 : 0.16;
+  const extra = Math.min(0.32, escapeBase + (level % 5) * 0.006);
   for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
     if(random()<extra){
       const opts=neighbors(r,c);
       const [nr,nc,dr,dc]=opts[Math.floor(random()*opts.length)];
       const a=dirIndex(dr,dc), b=(a+2)%4; m[r][c].w[a]=0;m[nr][nc].w[b]=0;
+    }
+  }
+
+  // Garante alguns cruzamentos amplos distribuídos pelo mapa para permitir fuga.
+  const junctions = Math.max(3, Math.floor(rows * cols * 0.045));
+  for(let i=0;i<junctions;i++){
+    const r=1+Math.floor(random()*Math.max(1,rows-2));
+    const c=1+Math.floor(random()*Math.max(1,cols-2));
+    const dirs=neighbors(r,c);
+    for(let n=0;n<Math.min(2,dirs.length);n++){
+      const pick=dirs[Math.floor(random()*dirs.length)];
+      const [nr,nc,dr,dc]=pick;
+      const a=dirIndex(dr,dc), b=(a+2)%4;
+      m[r][c].w[a]=0; m[nr][nc].w[b]=0;
     }
   }
   return m;
