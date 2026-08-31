@@ -1,0 +1,8 @@
+ROBO MAZE v1.3
+- Tela de jogo ampliada
+- Mais rotas de fuga
+- Setas
+- Joystick virtual
+- Swipe
+- Toque no caminho
+- Gradle 8.9

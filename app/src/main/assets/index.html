@@ -40,13 +40,7 @@
         <div>⚡ <span id="power">—</span></div>
       </div>
 
-      <div class="controls">
-        <button data-dir="left">◀</button>
-        <button data-dir="right">▶</button>
-        <button data-dir="up">▲</button>
-        <button data-dir="down">▼</button>
-      </div>
-      <p class="tip">Use os botões, teclado ou deslize no labirinto.</p>
+      <div id="controlLayer"><div id="arrowControls" class="controls compact"><button data-dir="left">◀</button><button data-dir="right">▶</button><button data-dir="up">▲</button><button data-dir="down">▼</button></div><div id="joystick" class="joystick hidden-control"><div class="joyBase"><div id="joyKnob" class="joyKnob"></div></div></div></div><p class="tip" id="controlTip">Controle: Setas</p>
     </section>
 
     <section id="pauseScreen" class="modal hidden">
@@ -74,7 +68,7 @@
         <label><input id="soundToggle" type="checkbox" checked> Som</label>
         <label><input id="vibrationToggle" type="checkbox" checked> Vibração</label>
         <label><input id="swipeToggle" type="checkbox" checked> Controle por deslize</label>
-        <button id="closeSettingsBtn" class="primary">FECHAR</button>
+        <div class="controlPicker"><strong>TIPO DE CONTROLE</strong><button class="controlChoice" data-control="arrows">⬅️ SETAS</button><button class="controlChoice" data-control="joystick">🕹️ JOYSTICK</button><button class="controlChoice" data-control="swipe">👆 DESLIZAR</button><button class="controlChoice" data-control="tap">🎯 TOCAR NO CAMINHO</button></div><button id="closeSettingsBtn" class="primary">FECHAR</button>
       </div>
     </section>
   </main>

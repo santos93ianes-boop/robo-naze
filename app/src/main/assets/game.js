@@ -21,7 +21,7 @@ let lives = 3;
 let maze, rows, cols, cell, player, enemies=[], coins=[], powerups=[], exitCell;
 let paused=false, running=false, startTime=0, collected=0, requiredCoins=0, lastEnemyMove=0;
 let shieldUntil=0, freezeUntil=0;
-let settings = Object.assign({sound:true,vibration:true,swipe:true}, saved.settings || {});
+let settings = Object.assign({sound:true,vibration:true,swipe:true,control:'arrows'}, saved.settings || {});
 
 document.getElementById('soundToggle').checked = settings.sound;
 document.getElementById('vibrationToggle').checked = settings.vibration;
@@ -280,7 +280,7 @@ window.addEventListener('keydown',e=>{
 let touchStart=null;
 canvas.addEventListener('pointerdown',e=>{touchStart=[e.clientX,e.clientY]});
 canvas.addEventListener('pointerup',e=>{
-  if(!settings.swipe||!touchStart)return;
+  if(controlMode!=='swipe'||!settings.swipe||!touchStart)return;
   let dx=e.clientX-touchStart[0],dy=e.clientY-touchStart[1];touchStart=null;
   if(Math.max(Math.abs(dx),Math.abs(dy))<18)return;
   if(Math.abs(dx)>Math.abs(dy))movePlayer(0,dx>0?1:-1);else movePlayer(dy>0?1:-1,0);
@@ -289,3 +289,12 @@ canvas.addEventListener('pointerup',e=>{
 if('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js').catch(()=>{});
 requestAnimationFrame(loop);
 })();
+
+let controlMode=settings.control||'arrows';
+function applyControlMode(mode){controlMode=mode;settings.control=mode;const a=document.getElementById('arrowControls'),j=document.getElementById('joystick');if(a)a.classList.toggle('hidden-control',mode!=='arrows');if(j)j.classList.toggle('hidden-control',mode!=='joystick');const n={arrows:'Setas',joystick:'Joystick',swipe:'Deslizar',tap:'Tocar no caminho'};const t=document.getElementById('controlTip');if(t)t.textContent='Controle: '+n[mode];document.querySelectorAll('.controlChoice').forEach(b=>b.classList.toggle('selected',b.dataset.control===mode));save(level)}
+document.querySelectorAll('.controlChoice').forEach(b=>b.addEventListener('click',()=>applyControlMode(b.dataset.control)));setTimeout(()=>applyControlMode(controlMode),0);
+const joy=document.getElementById('joystick'),knob=document.getElementById('joyKnob');let joyActive=false,joyLast=0;
+function joyMove(e){if(!joyActive||controlMode!=='joystick')return;const b=joy.querySelector('.joyBase').getBoundingClientRect(),cx=b.left+b.width/2,cy=b.top+b.height/2;let dx=e.clientX-cx,dy=e.clientY-cy,L=Math.hypot(dx,dy)||1,s=Math.min(1,38/L);knob.style.transform=`translate(${dx*s}px,${dy*s}px)`;let now=performance.now();if(now-joyLast<135||Math.hypot(dx,dy)<24)return;joyLast=now;if(Math.abs(dx)>Math.abs(dy))movePlayer(0,dx>0?1:-1);else movePlayer(dy>0?1:-1,0)}
+if(joy){joy.addEventListener('pointerdown',e=>{joyActive=true;joy.setPointerCapture(e.pointerId);joyMove(e)});joy.addEventListener('pointermove',joyMove);['pointerup','pointercancel'].forEach(x=>joy.addEventListener(x,()=>{joyActive=false;knob.style.transform='translate(0,0)'}))}
+function nextStepToward(tr,tc){if(tr<0||tc<0||tr>=rows||tc>=cols)return null;const q=[[player.r,player.c]],prev=new Map();prev.set(key(player.r,player.c),null);while(q.length){const [r,c]=q.shift();if(r===tr&&c===tc)break;for(const [nr,nc,dr,dc] of neighbors(r,c)){if(prev.has(key(nr,nc))||!canMove({r,c},dr,dc))continue;prev.set(key(nr,nc),[r,c]);q.push([nr,nc])}}if(!prev.has(key(tr,tc)))return null;let cur=[tr,tc],p=prev.get(key(...cur));while(p&&!(p[0]===player.r&&p[1]===player.c)){cur=p;p=prev.get(key(...cur))}return[cur[0]-player.r,cur[1]-player.c]}
+canvas.addEventListener('click',e=>{if(controlMode!=='tap'||!running||paused)return;const r=canvas.getBoundingClientRect(),tc=Math.floor((e.clientX-r.left)/r.width*cols),tr=Math.floor((e.clientY-r.top)/r.height*rows),s=nextStepToward(tr,tc);if(s)movePlayer(...s)});
