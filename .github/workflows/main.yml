@@ -3,12 +3,12 @@ name: ROBO MAZE - GERAR APK
 on:
   workflow_dispatch:
   push:
-    branches: [ "main", "master", "principal" ]
+    branches:
+      - main
 
 jobs:
   apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
 
     steps:
       - name: Baixar arquivos
@@ -24,54 +24,42 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Instalar Android 34
-        shell: bash
         run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          yes | sdkmanager --licenses || true
+          sdkmanager "platforms;android-34" "build-tools;34.0.0"
 
-      - name: Instalar Gradle 8.7
+      - name: Instalar Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.7'
+          gradle-version: '8.9'
 
-      - name: Localizar projeto Android
-        id: project
-        shell: bash
-        run: |
-          SETTINGS=$(find "$GITHUB_WORKSPACE" -maxdepth 4 -type f \( -name settings.gradle -o -name settings.gradle.kts \) | head -n 1)
-          if [ -z "$SETTINGS" ]; then
-            echo "ERRO: settings.gradle não encontrado. Envie o conteúdo do ZIP para a raiz do repositório."
-            find "$GITHUB_WORKSPACE" -maxdepth 3 -type f | sort
-            exit 1
-          fi
-          PROJECT_DIR=$(dirname "$SETTINGS")
-          echo "dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
-          echo "Projeto encontrado em: $PROJECT_DIR"
-
-      - name: Gerar APK
-        shell: bash
-        working-directory: ${{ steps.project.outputs.dir }}
+      - name: Verificar Gradle
         run: |
           gradle --version
-          gradle --no-daemon --stacktrace clean assembleDebug
+
+      - name: Gerar APK
+        run: |
+          gradle clean assembleDebug --no-daemon --stacktrace
 
       - name: Localizar APK
-        id: apk
-        shell: bash
         run: |
-          APK=$(find "${{ steps.project.outputs.dir }}" -type f -path "*/build/outputs/apk/debug/*.apk" | head -n 1)
+          find . -type f -name "*.apk"
+
+      - name: Preparar RoboMaze APK
+        run: |
+          mkdir -p apk-final
+          APK=$(find . -type f -path "*/build/outputs/apk/debug/*.apk" | head -1)
+
           if [ -z "$APK" ]; then
-            echo "ERRO: APK não foi encontrado."
+            echo "ERRO: APK nao encontrado"
             exit 1
           fi
-          mkdir -p "$GITHUB_WORKSPACE/saida"
-          cp "$APK" "$GITHUB_WORKSPACE/saida/RoboMaze.apk"
-          echo "apk=$GITHUB_WORKSPACE/saida/RoboMaze.apk" >> "$GITHUB_OUTPUT"
+
+          cp "$APK" apk-final/ROBO-MAZE.apk
 
       - name: Baixar RoboMaze APK
         uses: actions/upload-artifact@v4
         with:
-          name: RoboMaze-APK
-          path: saida/RoboMaze.apk
+          name: ROBO-MAZE-APK
+          path: apk-final/ROBO-MAZE.apk
           if-no-files-found: error
-          retention-days: 30
