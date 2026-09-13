@@ -572,7 +572,7 @@ class RoboMazeView extends View {
     }
 
     private void drawScannerCone(Canvas c,float x,float y,float cell,int kind){
-        float ang=((System.currentTimeMillis()/900.0)+(kind*1.7))%(Math.PI*2);float len=cell*.95f,spread=.36f;
+        float ang=(float)(((System.currentTimeMillis()/900.0)+(kind*1.7))%(Math.PI*2));float len=cell*.95f,spread=.36f;
         Path q=new Path();q.moveTo(x,y);q.lineTo(x+(float)Math.cos(ang-spread)*len,y+(float)Math.sin(ang-spread)*len);q.lineTo(x+(float)Math.cos(ang+spread)*len,y+(float)Math.sin(ang+spread)*len);q.close();p.setColor(Color.argb(38,255,55,55));c.drawPath(q,p);
     }
 
