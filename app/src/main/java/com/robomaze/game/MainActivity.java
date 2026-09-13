@@ -10,8 +10,13 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
+import android.graphics.LinearGradient;
+import android.graphics.Shader;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.media.MediaPlayer;
+import android.media.ToneGenerator;
+import android.media.AudioManager;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.MotionEvent;
@@ -47,6 +52,7 @@ class RoboMazeView extends View {
     private Bitmap cover;
     private Bitmap approvedGameInterface;
     private MediaPlayer musicPlayer;
+    private ToneGenerator fxTone;
 
     private enum Screen { MENU, LEVELS, GAME, RECORDS, SETTINGS }
     private Screen screen = Screen.MENU;
@@ -133,6 +139,7 @@ class RoboMazeView extends View {
             musicPlayer.setVolume(0.68f, 0.68f);
             if (soundOn) musicPlayer.start();
         }
+        fxTone = new ToneGenerator(AudioManager.STREAM_MUSIC, 72);
         stroke.setStyle(Paint.Style.STROKE);
         stroke.setStrokeCap(Paint.Cap.ROUND);
         handler.post(ticker);
@@ -148,6 +155,7 @@ class RoboMazeView extends View {
     @Override protected void onDetachedFromWindow() {
         handler.removeCallbacks(ticker);
         if (musicPlayer != null) { musicPlayer.stop(); musicPlayer.release(); musicPlayer = null; }
+        if (fxTone != null) { fxTone.release(); fxTone = null; }
         super.onDetachedFromWindow();
     }
 
@@ -164,28 +172,55 @@ class RoboMazeView extends View {
     }
 
     private void drawMenu(Canvas c) {
-        float w = getWidth(), h = getHeight();
-        if (cover != null) {
-            float size = Math.min(w * .68f, h * .35f);
-            RectF dst = new RectF((w-size)/2, h*.025f, (w+size)/2, h*.025f+size);
-            c.drawBitmap(cover, null, dst, p);
-        }
-        p.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        p.setTextAlign(Paint.Align.CENTER);
-        p.setColor(Color.WHITE); p.setTextSize(w*.078f);
-        c.drawText("ROBO MAZE", w/2, h*.43f, p);
-        p.setColor(Color.rgb(255,205,30)); p.setTextSize(w*.033f);
-        c.drawText("DESVIE • COLETE • VENÇA!", w/2, h*.465f, p);
-
-        drawMenuButton(c, "▶  JOGAR", h*.525f, Color.rgb(255,160,0));
-        drawMenuButton(c, "▦  NÍVEIS", h*.615f, Color.rgb(0,150,225));
-        drawMenuButton(c, "★  RECORDES", h*.705f, Color.rgb(0,120,215));
-        drawMenuButton(c, "⚙  CONFIGURAÇÕES", h*.795f, Color.rgb(30,95,175));
-
-        p.setTextSize(w*.031f); p.setColor(Color.WHITE);
-        c.drawText("CONTROLE: " + controlNames[controlMode], w/2, h*.885f, p);
-        c.drawText("ROBÔ: " + robotModelNames[robotModelIndex] + " / " + robotColorNames[robotColorIndex] + "   •   " + (soundOn?"♫ MÚSICA ON":"♫ MÚSICA OFF"), w/2, h*.935f, p);
+        float w=getWidth(), h=getHeight();
+        int navy=Color.rgb(3,13,30), cyan=Color.rgb(0,220,255), gold=Color.rgb(255,190,32);
+        c.drawColor(navy);
+        // cinematic background grid
+        p.setColor(Color.argb(28,0,220,255));
+        for(int i=0;i<18;i++) c.drawLine(0,h*(.12f+i*.055f),w,h*(.12f+i*.055f),p);
+        for(int i=0;i<28;i++) c.drawLine(w*(i*.04f),0,w*(i*.04f),h,p);
+        // subtle approved art as atmosphere
+        if(approvedGameInterface!=null){ p.setAlpha(40); c.drawBitmap(approvedGameInterface,null,new RectF(0,0,w,h),p); p.setAlpha(255); }
+        // left hero card
+        RectF hero=new RectF(w*.035f,h*.07f,w*.43f,h*.93f);
+        p.setColor(Color.argb(235,4,20,42)); c.drawRoundRect(hero,30,30,p);
+        stroke.setColor(Color.argb(170,0,220,255)); stroke.setStrokeWidth(2.5f); c.drawRoundRect(hero,30,30,stroke);
+        if(cover!=null){ float size=Math.min(hero.width()*.78f,hero.height()*.50f); RectF dst=new RectF(hero.centerX()-size/2,hero.top+h*.045f,hero.centerX()+size/2,hero.top+h*.045f+size); c.drawBitmap(cover,null,dst,p); }
+        p.setTextAlign(Paint.Align.CENTER); p.setTypeface(Typeface.DEFAULT_BOLD);
+        p.setColor(Color.WHITE); p.setTextSize(h*.070f); c.drawText("ROBO MAZE",hero.centerX(),hero.top+hero.height()*.66f,p);
+        p.setColor(gold); p.setTextSize(h*.032f); c.drawText("DESVIE • COLETE • VENÇA!",hero.centerX(),hero.top+hero.height()*.72f,p);
+        p.setColor(Color.rgb(155,195,220)); p.setTextSize(h*.022f); c.drawText("6 MUNDOS  •  30 FASES  •  6 ROBÔS",hero.centerX(),hero.top+hero.height()*.79f,p);
+        // mini badges
+        drawPill(c,"DIFICULDADE PROGRESSIVA",hero.left+hero.width()*.08f,hero.top+hero.height()*.84f,hero.width()*.84f,h*.055f,Color.rgb(20,70,105));
+        // right menu panel
+        RectF panel=new RectF(w*.47f,h*.07f,w*.965f,h*.93f);
+        p.setColor(Color.argb(242,5,18,38)); c.drawRoundRect(panel,30,30,p);
+        stroke.setColor(Color.argb(120,0,220,255)); stroke.setStrokeWidth(2); c.drawRoundRect(panel,30,30,stroke);
+        p.setTextAlign(Paint.Align.LEFT); p.setColor(Color.WHITE); p.setTextSize(h*.036f); c.drawText("CENTRAL DE MISSÃO",panel.left+w*.025f,panel.top+h*.065f,p);
+        p.setColor(Color.rgb(100,235,255)); p.setTextSize(h*.021f); c.drawText("Prepare seu robô e entre no labirinto",panel.left+w*.025f,panel.top+h*.102f,p);
+        float bx=panel.left+w*.025f, bw=panel.width()-w*.05f, bh=h*.105f, gap=h*.024f, y=panel.top+h*.155f;
+        drawPremiumButton(c,"▶  JOGAR AGORA","Continuar da fase " + Math.min(unlocked,30),bx,y,bw,bh,Color.rgb(0,155,220)); y+=bh+gap;
+        drawPremiumButton(c,"▦  MAPA DE FASES","30 missões em 6 mundos",bx,y,bw,bh,Color.rgb(25,105,210)); y+=bh+gap;
+        drawPremiumButton(c,"★  RECORDES","Pontuação e progresso",bx,y,bw,bh,Color.rgb(80,70,190)); y+=bh+gap;
+        drawPremiumButton(c,"⚙  HANGAR & CONTROLES","Robôs, cores, áudio e comando",bx,y,bw,bh,Color.rgb(30,90,135));
+        float bottom=panel.bottom-h*.055f;
+        p.setTextAlign(Paint.Align.CENTER); p.setTextSize(h*.021f); p.setColor(Color.rgb(175,205,225));
+        c.drawText("CONTROLE: "+controlNames[controlMode]+"   •   ROBÔ: "+robotModelNames[robotModelIndex]+"   •   "+(soundOn?"MÚSICA ON":"MÚSICA OFF"),panel.centerX(),bottom,p);
     }
+
+    private void drawPill(Canvas c,String text,float x,float y,float ww,float hh,int color){
+        p.setColor(color); c.drawRoundRect(new RectF(x,y,x+ww,y+hh),hh/2,hh/2,p);
+        p.setTextAlign(Paint.Align.CENTER); p.setTypeface(Typeface.DEFAULT_BOLD); p.setTextSize(hh*.38f); p.setColor(Color.WHITE); c.drawText(text,x+ww/2,y+hh*.64f,p);
+    }
+
+    private void drawPremiumButton(Canvas c,String title,String sub,float x,float y,float ww,float hh,int color){
+        LinearGradient g=new LinearGradient(x,y,x+ww,y,color,mix(color,Color.BLACK,.24f),Shader.TileMode.CLAMP); p.setShader(g); c.drawRoundRect(new RectF(x,y,x+ww,y+hh),20,20,p); p.setShader(null);
+        stroke.setColor(Color.argb(100,255,255,255)); stroke.setStrokeWidth(2); c.drawRoundRect(new RectF(x,y,x+ww,y+hh),20,20,stroke);
+        p.setTextAlign(Paint.Align.LEFT); p.setTypeface(Typeface.DEFAULT_BOLD); p.setColor(Color.WHITE); p.setTextSize(hh*.33f); c.drawText(title,x+ww*.05f,y+hh*.43f,p);
+        p.setTypeface(Typeface.DEFAULT); p.setColor(Color.argb(220,225,245,255)); p.setTextSize(hh*.20f); c.drawText(sub,x+ww*.05f,y+hh*.75f,p);
+        p.setTextAlign(Paint.Align.RIGHT); p.setTypeface(Typeface.DEFAULT_BOLD); p.setTextSize(hh*.40f); p.setColor(Color.WHITE); c.drawText("›",x+ww*.95f,y+hh*.58f,p);
+    }
+
 
     private void drawMenuButton(Canvas c, String text, float cy, int color) {
         float w = getWidth(), h = getHeight();
@@ -198,24 +233,26 @@ class RoboMazeView extends View {
     }
 
     private void drawLevels(Canvas c) {
-        float w=getWidth(), h=getHeight();
-        drawHeader(c,"SELEÇÃO DE NÍVEIS");
-        int columns=5;
-        float gap=w*.025f, cell=(w-gap*(columns+1))/columns;
-        float top=h*.18f;
+        float w=getWidth(),h=getHeight();
+        c.drawColor(Color.rgb(3,15,34)); drawHeader(c,"MAPA DE FASES");
+        p.setTextAlign(Paint.Align.LEFT); p.setTypeface(Typeface.DEFAULT_BOLD); p.setColor(Color.rgb(100,225,255)); p.setTextSize(h*.028f);
+        c.drawText("6 MUNDOS • dificuldade crescente",w*.06f,h*.165f,p);
+        int columns=10; float gap=w*.012f, left=w*.055f, right=w*.945f; float cell=(right-left-gap*(columns-1))/columns; float top=h*.22f;
         for(int i=1;i<=30;i++){
-            int rr=(i-1)/columns, cc=(i-1)%columns;
-            float x=gap+cc*(cell+gap), y=top+rr*(cell+gap);
-            RectF r=new RectF(x,y,x+cell,y+cell);
-            int color=i<unlocked?Color.rgb(55,190,70):(i==unlocked?Color.rgb(255,170,0):Color.rgb(45,62,90));
-            p.setColor(color); c.drawRoundRect(r,18,18,p);
-            stroke.setColor(Color.argb(120,255,255,255)); stroke.setStrokeWidth(2); c.drawRoundRect(r,18,18,stroke);
-            p.setTextAlign(Paint.Align.CENTER); p.setTypeface(android.graphics.Typeface.DEFAULT_BOLD); p.setTextSize(w*.052f); p.setColor(Color.WHITE);
-            c.drawText(i<=unlocked?String.valueOf(i):"🔒",r.centerX(),r.centerY()+p.getTextSize()*.35f,p);
+            int rr=(i-1)/columns,cc=(i-1)%columns; float x=left+cc*(cell+gap), y=top+rr*(cell+gap+h*.030f);
+            RectF r=new RectF(x,y,x+cell,y+cell*.78f); int tier=(i-1)/5;
+            int[] tc={Color.rgb(0,165,220),Color.rgb(210,120,30),Color.rgb(65,170,215),Color.rgb(220,75,45),Color.rgb(70,115,210),Color.rgb(145,75,210)};
+            int col=i<=unlocked?tc[tier]:Color.rgb(30,45,68); p.setColor(col); c.drawRoundRect(r,14,14,p);
+            stroke.setColor(i==unlocked?Color.WHITE:Color.argb(80,255,255,255)); stroke.setStrokeWidth(i==unlocked?3:1.5f); c.drawRoundRect(r,14,14,stroke);
+            p.setTextAlign(Paint.Align.CENTER);p.setTypeface(Typeface.DEFAULT_BOLD);p.setColor(Color.WHITE);p.setTextSize(cell*.29f);c.drawText(i<=unlocked?String.valueOf(i):"×",r.centerX(),r.centerY()+cell*.09f,p);
+            if(i==unlocked){p.setTextSize(cell*.12f);p.setColor(Color.rgb(255,225,90));c.drawText("ATUAL",r.centerX(),r.bottom+cell*.17f,p);}
         }
-        p.setTextSize(w*.035f); p.setColor(Color.LTGRAY); p.setTextAlign(Paint.Align.CENTER);
-        c.drawText("Conclua uma fase para liberar a próxima.",w/2,h*.95f,p);
+        String[] worlds={"LAB NEON","RUÍNAS CYBER","ESTAÇÃO GELO","NÚCLEO VULCÃO","FÁBRICA QUÂNTICA","REATOR VOID"};
+        p.setTextAlign(Paint.Align.CENTER);p.setTextSize(h*.020f);p.setColor(Color.rgb(160,190,215));
+        for(int i=0;i<6;i++) c.drawText((i+1)+". "+worlds[i],w*(.12f+i*.152f),h*.86f,p);
+        p.setTextSize(h*.021f);p.setColor(Color.WHITE);c.drawText("Complete uma fase para liberar a próxima.",w/2,h*.94f,p);
     }
+
 
     private void drawRecords(Canvas c) {
         float w=getWidth(),h=getHeight();
@@ -229,27 +266,34 @@ class RoboMazeView extends View {
     }
 
     private void drawSettings(Canvas c) {
-        float w=getWidth(),h=getHeight();
-        drawHeader(c,"CONFIGURAÇÕES");
-        p.setTextAlign(Paint.Align.CENTER); p.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
-        p.setColor(Color.rgb(255,205,30)); p.setTextSize(w*.052f); c.drawText("ESCOLHA O CONTROLE",w/2,h*.19f,p);
+        float w=getWidth(),h=getHeight(); c.drawColor(Color.rgb(3,15,34)); drawHeader(c,"HANGAR & CONTROLES");
+        float left=w*.055f, mid=w*.50f, right=w*.945f, top=h*.16f, bottom=h*.94f;
+        // Controls card
+        RectF a=new RectF(left,top,mid-w*.018f,bottom); p.setColor(Color.rgb(6,26,52)); c.drawRoundRect(a,24,24,p); stroke.setColor(Color.argb(100,0,220,255));stroke.setStrokeWidth(2);c.drawRoundRect(a,24,24,stroke);
+        p.setTextAlign(Paint.Align.LEFT);p.setTypeface(Typeface.DEFAULT_BOLD);p.setColor(Color.rgb(100,230,255));p.setTextSize(h*.032f);c.drawText("CONTROLE",a.left+w*.025f,a.top+h*.055f,p);
         String[] labels={"JOYSTICK VIRTUAL","DESLIZAR (SWIPE)","SETAS NA TELA","TOQUE NO DESTINO"};
-        int[] colors={Color.rgb(0,155,210),Color.rgb(30,170,95),Color.rgb(145,70,190),Color.rgb(230,135,25)};
+        String[] subs={"Preciso e confortável","Rápido e intuitivo","Clássico e fácil","Toque para indicar direção"};
         for(int i=0;i<4;i++){
-            float cy=h*(.27f+i*.105f); RectF r=new RectF(w*.10f,cy-h*.035f,w*.90f,cy+h*.035f);
-            p.setColor(i==controlMode?colors[i]:Color.rgb(30,50,82)); c.drawRoundRect(r,18,18,p);
-            stroke.setColor(i==controlMode?Color.WHITE:Color.rgb(75,105,145)); stroke.setStrokeWidth(i==controlMode?4:2); c.drawRoundRect(r,18,18,stroke);
-            p.setColor(Color.WHITE); p.setTextSize(w*.039f); c.drawText((i==controlMode?"✓  ":"")+labels[i],w/2,cy+p.getTextSize()*.34f,p);
+            float cy=a.top+h*(.13f+i*.13f);RectF r=new RectF(a.left+w*.02f,cy,a.right-w*.02f,cy+h*.095f);
+            p.setColor(i==controlMode?Color.rgb(0,145,205):Color.rgb(20,48,78));c.drawRoundRect(r,16,16,p); stroke.setColor(i==controlMode?Color.WHITE:Color.rgb(45,80,115));stroke.setStrokeWidth(i==controlMode?2.5f:1.3f);c.drawRoundRect(r,16,16,stroke);
+            p.setTextAlign(Paint.Align.LEFT);p.setTypeface(Typeface.DEFAULT_BOLD);p.setColor(Color.WHITE);p.setTextSize(h*.025f);c.drawText((i==controlMode?"✓  ":"○  ")+labels[i],r.left+w*.015f,r.top+h*.039f,p);
+            p.setTypeface(Typeface.DEFAULT);p.setColor(Color.rgb(175,205,225));p.setTextSize(h*.018f);c.drawText(subs[i],r.left+w*.045f,r.top+h*.071f,p);
         }
-        p.setColor(Color.rgb(255,205,30)); p.setTextSize(w*.036f); c.drawText("PERSONALIZAÇÃO",w/2,h*.69f,p);
-        RectF model=new RectF(w*.10f,h*.715f,w*.90f,h*.775f); p.setColor(Color.rgb(25,100,175)); c.drawRoundRect(model,18,18,p);
-        p.setColor(Color.WHITE); p.setTextSize(w*.032f); c.drawText("MODELO: "+robotModelNames[robotModelIndex]+"  ›",w/2,h*.755f,p);
-        RectF color=new RectF(w*.10f,h*.79f,w*.90f,h*.85f); p.setColor(robotColors[robotColorIndex]); c.drawRoundRect(color,18,18,p);
-        p.setColor(robotColorIndex==7?Color.DKGRAY:Color.WHITE); c.drawText("COR: "+robotColorNames[robotColorIndex]+"  ›",w/2,h*.83f,p);
-        RectF music=new RectF(w*.10f,h*.865f,w*.90f,h*.925f); p.setColor(soundOn?Color.rgb(45,170,85):Color.rgb(105,115,135)); c.drawRoundRect(music,18,18,p);
-        p.setColor(Color.WHITE); c.drawText(soundOn?"♫ SUSPENSE: LIGADO":"♫ SUSPENSE: DESLIGADO",w/2,h*.905f,p);
-        p.setColor(Color.LTGRAY); p.setTextSize(w*.023f); c.drawText("Tudo fica salvo automaticamente.",w/2,h*.97f,p);
+        // Hangar card
+        RectF b=new RectF(mid+w*.018f,top,right,bottom);p.setColor(Color.rgb(6,26,52));c.drawRoundRect(b,24,24,p);stroke.setColor(Color.argb(100,255,190,35));stroke.setStrokeWidth(2);c.drawRoundRect(b,24,24,stroke);
+        p.setTextAlign(Paint.Align.LEFT);p.setTypeface(Typeface.DEFAULT_BOLD);p.setColor(Color.rgb(255,205,60));p.setTextSize(h*.032f);c.drawText("ROBÔ",b.left+w*.025f,b.top+h*.055f,p);
+        // robot preview
+        float px=b.left+b.width()*.22f, py=b.top+h*.22f; drawRobot(c,px,py,h*.22f);
+        p.setTextAlign(Paint.Align.LEFT);p.setColor(Color.WHITE);p.setTextSize(h*.033f);c.drawText(robotModelNames[robotModelIndex],b.left+b.width()*.42f,b.top+h*.18f,p);
+        p.setTypeface(Typeface.DEFAULT);p.setColor(Color.rgb(170,205,225));p.setTextSize(h*.019f);c.drawText("Toque em MODELO para trocar",b.left+b.width()*.42f,b.top+h*.22f,p);
+        RectF model=new RectF(b.left+w*.025f,b.top+h*.31f,b.right-w*.025f,b.top+h*.39f);p.setColor(Color.rgb(25,95,165));c.drawRoundRect(model,16,16,p);p.setTextAlign(Paint.Align.CENTER);p.setTypeface(Typeface.DEFAULT_BOLD);p.setColor(Color.WHITE);p.setTextSize(h*.024f);c.drawText("MODELO  ‹  "+robotModelNames[robotModelIndex]+"  ›",model.centerX(),model.centerY()+h*.009f,p);
+        // color chips
+        p.setTextAlign(Paint.Align.LEFT);p.setColor(Color.rgb(255,205,60));p.setTextSize(h*.022f);c.drawText("COR",b.left+w*.025f,b.top+h*.455f,p);
+        float chipY=b.top+h*.50f, chipR=h*.025f; for(int i=0;i<robotColors.length;i++){float xx=b.left+w*.045f+i*(b.width()-w*.09f)/(robotColors.length-1);p.setColor(robotColors[i]);c.drawCircle(xx,chipY,chipR,p);if(i==robotColorIndex){stroke.setColor(Color.WHITE);stroke.setStrokeWidth(4);c.drawCircle(xx,chipY,chipR+5,stroke);}}
+        RectF music=new RectF(b.left+w*.025f,b.top+h*.585f,b.right-w*.025f,b.top+h*.675f);p.setColor(soundOn?Color.rgb(30,155,85):Color.rgb(75,82,95));c.drawRoundRect(music,16,16,p);p.setTextAlign(Paint.Align.CENTER);p.setColor(Color.WHITE);p.setTextSize(h*.025f);c.drawText(soundOn?"♫  MÚSICA DE SUSPENSE: LIGADA":"♫  MÚSICA: DESLIGADA",music.centerX(),music.centerY()+h*.009f,p);
+        p.setTextSize(h*.018f);p.setColor(Color.rgb(160,190,210));c.drawText("Todas as escolhas ficam salvas automaticamente.",b.centerX(),b.bottom-h*.035f,p);
     }
+
 
     private void drawHeader(Canvas c,String title){
         float w=getWidth(),h=getHeight();
@@ -269,8 +313,9 @@ class RoboMazeView extends View {
     private void startLevel(int n){
         level=Math.max(1,Math.min(30,n)); score=Math.max(0,score); lives=3; paused=false;
         int tier=(level-1)/5;
-        rows=Math.min(21,9+tier*2);
-        cols=Math.min(19,9+tier*2);
+        // wide labyrinths designed for landscape phones
+        rows=Math.min(17,9+tier*2);
+        cols=Math.min(23,15+tier*2);
         if(rows%2==0) rows++; if(cols%2==0) cols++;
         generateMaze(rows,cols,level*9973L);
         playerR=0; playerC=0; startR=0; startC=0; exitR=rows-1; exitC=cols-1;
@@ -286,11 +331,30 @@ class RoboMazeView extends View {
         for(int i=0;i<r;i++) for(int j=0;j<=co;j++) vWalls[i][j]=true;
         for(int i=0;i<=r;i++) for(int j=0;j<co;j++) hWalls[i][j]=true;
         Random rng=new Random(seed); carve(0,0,rng);
-        int loops=Math.min(18, 2 + level/2);
+        int loops=Math.min(26, 4 + level);
+        carveRooms(rng);
         for(int k=0;k<loops;k++){
             int rr=rng.nextInt(r), cc=rng.nextInt(co);
             if(rng.nextBoolean() && cc<co-1) vWalls[rr][cc+1]=false;
             else if(rr<r-1) hWalls[rr+1][cc]=false;
+        }
+    }
+
+    private void carveRooms(Random rng){
+        int rooms = Math.min(5, 1 + level/6);
+        for(int n=0;n<rooms;n++){
+            int rh = 2 + rng.nextInt(level>14?3:2);
+            int rw = 2 + rng.nextInt(level>9?4:3);
+            int rr = 1 + rng.nextInt(Math.max(1, rows-rh-2));
+            int cc = 1 + rng.nextInt(Math.max(1, cols-rw-2));
+            for(int r=rr;r<rr+rh;r++) for(int c=cc;c<cc+rw;c++){
+                if(c<cc+rw-1) vWalls[r][c+1]=false;
+                if(r<rr+rh-1) hWalls[r+1][c]=false;
+            }
+            // punch 2-3 doorways so rooms feel intentional, not sealed boxes
+            if(cc>0) vWalls[rr+rng.nextInt(rh)][cc]=false;
+            if(cc+rw<cols) vWalls[rr+rng.nextInt(rh)][cc+rw]=false;
+            if(rr>0 && rng.nextBoolean()) hWalls[rr][cc+rng.nextInt(rw)]=false;
         }
     }
 
@@ -368,14 +432,12 @@ class RoboMazeView extends View {
         // board halo
         p.setShadowLayer(24,0,0,glow[ti]); p.setColor(Color.argb(90,Color.red(glow[ti]),Color.green(glow[ti]),Color.blue(glow[ti]))); c.drawRoundRect(new RectF(left-8,top-8,left+bw+8,top+bh+8),18,18,p); p.clearShadowLayer();
 
-        // metallic floor tiles
+        // premium modular floor: beveled plates, seams, vents and theme details
         for(int r=0;r<rows;r++) for(int cc=0;cc<cols;cc++){
             float x=left+cc*cell,y=top+r*cell;
-            int fc=mix(floor[ti],Color.WHITE,((r+cc)%2==0)?.035f:.0f);
-            p.setColor(fc); c.drawRect(x,y,x+cell+1,y+cell+1,p);
-            stroke.setColor(Color.argb(50,180,220,255)); stroke.setStrokeWidth(1); c.drawRect(x+1,y+1,x+cell-1,y+cell-1,stroke);
-            if(((r*cols+cc+level)%11)==0){p.setColor(Color.argb(120,Color.red(glow[ti]),Color.green(glow[ti]),Color.blue(glow[ti]))); c.drawCircle(x+cell*.18f,y+cell*.18f,Math.max(1.4f,cell*.025f),p);}
+            drawFloorTile(c,x,y,cell,floor[ti],glow[ti],ti,r,cc);
         }
+        drawWorldDecor(c,left,top,cell,ti,glow[ti]);
 
         // hazards/power conduits in later levels
         if(level>=7){
@@ -386,55 +448,47 @@ class RoboMazeView extends View {
             }
         }
 
-        // coins
+        // coins with animated energy halo
         for(int r=0;r<rows;r++) for(int cc=0;cc<cols;cc++) if(coins[r][cc]){
-            float x=left+(cc+.5f)*cell,y=top+(r+.5f)*cell;
-            p.setShadowLayer(cell*.22f,0,0,Color.rgb(255,190,0)); p.setColor(Color.rgb(255,196,25)); c.drawCircle(x,y,cell*.15f,p); p.clearShadowLayer();
-            p.setColor(Color.rgb(255,235,120)); c.drawCircle(x-cell*.03f,y-cell*.035f,cell*.07f,p);
-            p.setColor(Color.rgb(180,110,0)); p.setTextAlign(Paint.Align.CENTER); p.setTextSize(cell*.15f); p.setTypeface(android.graphics.Typeface.DEFAULT_BOLD); c.drawText("★",x,y+cell*.05f,p);
+            float x=left+(cc+.5f)*cell,y=top+(r+.5f)*cell; drawCoin(c,x,y,cell);
         }
 
-        // exit portal
+        // animated exit portal
         float ex=left+(exitC+.5f)*cell, ey=top+(exitR+.5f)*cell;
         int portal= remainingCoins==0?Color.rgb(70,255,120):Color.rgb(255,65,65);
-        p.setShadowLayer(cell*.38f,0,0,portal); p.setColor(Color.argb(180,Color.red(portal),Color.green(portal),Color.blue(portal))); c.drawCircle(ex,ey,cell*.28f,p); p.clearShadowLayer();
-        stroke.setColor(Color.WHITE); stroke.setStrokeWidth(Math.max(2,cell*.04f)); c.drawCircle(ex,ey,cell*.18f,stroke);
+        drawPortal(c,ex,ey,cell,portal,remainingCoins==0);
 
-        // extruded walls: shadow/depth first, then face and highlight
-        float wt=Math.max(4,cell*.17f), depth=Math.max(3,cell*.07f);
-        Paint wallPaint=p;
+        // modular 3D walls: depth, bevel, bolts, neon strips and panel seams
+        float wt=Math.max(5,cell*.19f);
         for(int r=0;r<rows;r++) for(int cc=0;cc<=cols;cc++) if(vWalls[r][cc]){
-            float x=left+cc*cell,y1=top+r*cell,y2=y1+cell;
-            wallPaint.setColor(mix(wall[ti],Color.BLACK,.45f)); c.drawRect(x-wt*.55f+depth,y1+depth,x+wt*.55f+depth,y2+depth,wallPaint);
-            wallPaint.setColor(wall[ti]); c.drawRoundRect(new RectF(x-wt*.55f,y1,x+wt*.55f,y2),wt*.22f,wt*.22f,wallPaint);
-            wallPaint.setColor(mix(wall[ti],Color.WHITE,.32f)); c.drawRect(x-wt*.45f,y1+1,x-wt*.18f,y2-1,wallPaint);
+            float x=left+cc*cell,y1=top+r*cell,y2=y1+cell; drawWallV(c,x,y1,y2,wt,wall[ti],glow[ti],ti,r,cc);
         }
         for(int r=0;r<=rows;r++) for(int cc=0;cc<cols;cc++) if(hWalls[r][cc]){
-            float y=top+r*cell,x1=left+cc*cell,x2=x1+cell;
-            wallPaint.setColor(mix(wall[ti],Color.BLACK,.45f)); c.drawRect(x1+depth,y-wt*.55f+depth,x2+depth,y+wt*.55f+depth,wallPaint);
-            wallPaint.setColor(wall[ti]); c.drawRoundRect(new RectF(x1,y-wt*.55f,x2,y+wt*.55f),wt*.22f,wt*.22f,wallPaint);
-            wallPaint.setColor(mix(wall[ti],Color.WHITE,.30f)); c.drawRect(x1+1,y-wt*.43f,x2-1,y-wt*.17f,wallPaint);
+            float y=top+r*cell,x1=left+cc*cell,x2=x1+cell; drawWallH(c,x1,x2,y,wt,wall[ti],glow[ti],ti,r,cc);
         }
 
+        // enemy scanner cones under characters on advanced phases
+        if(level>=6){ for(Enemy e:enemies){ float x=left+(e.c+.5f)*cell,y=top+(e.r+.5f)*cell; drawScannerCone(c,x,y,cell,e.kind); } }
         for(Enemy e:enemies){ float x=left+(e.c+.5f)*cell,y=top+(e.r+.5f)*cell; drawEnemy(c,x,y,cell,e.kind); }
         float px=left+(playerC+.5f)*cell,py=top+(playerR+.5f)*cell; drawRobot(c,px,py,cell);
 
-        // right control/status panel
-        float pl=w*.815f, pr=w*.985f;
-        p.setColor(Color.argb(220,6,19,36)); c.drawRoundRect(new RectF(pl,h*.15f,pr,h*.97f),22,22,p);
-        stroke.setColor(Color.argb(130,Color.red(glow[ti]),Color.green(glow[ti]),Color.blue(glow[ti]))); stroke.setStrokeWidth(2); c.drawRoundRect(new RectF(pl,h*.15f,pr,h*.97f),22,22,stroke);
-        p.setTextAlign(Paint.Align.CENTER); p.setTypeface(android.graphics.Typeface.DEFAULT_BOLD); p.setColor(glow[ti]); p.setTextSize(h*.034f); c.drawText("MISSÃO",(pl+pr)/2,h*.205f,p);
-        p.setColor(Color.WHITE); p.setTextSize(h*.025f); c.drawText(remainingCoins>0?"COLETE TODAS":"PORTAL LIBERADO",(pl+pr)/2,h*.245f,p);
-        c.drawText("CONTROLE",(pl+pr)/2,h*.34f,p); p.setColor(glow[ti]); c.drawText(controlNames[controlMode],(pl+pr)/2,h*.375f,p);
-        c.drawText("ROBÔ",(pl+pr)/2,h*.47f,p); p.setColor(Color.WHITE); c.drawText(robotModelNames[robotModelIndex],(pl+pr)/2,h*.505f,p);
+        // right tactical panel: minimap, mission and selected control
+        float pl=w*.815f, pr=w*.985f, pc=(pl+pr)/2f;
+        p.setColor(Color.argb(232,5,18,36)); c.drawRoundRect(new RectF(pl,h*.15f,pr,h*.97f),22,22,p);
+        stroke.setColor(Color.argb(145,Color.red(glow[ti]),Color.green(glow[ti]),Color.blue(glow[ti]))); stroke.setStrokeWidth(2); c.drawRoundRect(new RectF(pl,h*.15f,pr,h*.97f),22,22,stroke);
+        p.setTextAlign(Paint.Align.CENTER); p.setTypeface(Typeface.DEFAULT_BOLD);p.setColor(Color.WHITE);p.setTextSize(h*.024f);c.drawText("MAPA TÁTICO",pc,h*.19f,p);
+        RectF mini=new RectF(pl+w*.012f,h*.215f,pr-w*.012f,h*.43f); drawMiniMap(c,mini,glow[ti]);
+        p.setColor(glow[ti]);p.setTextSize(h*.026f);c.drawText("MISSÃO",pc,h*.485f,p);p.setColor(Color.WHITE);p.setTextSize(h*.019f);c.drawText(remainingCoins>0?"COLETE "+remainingCoins+" MOEDAS":"PORTAL LIBERADO",pc,h*.518f,p);
+        p.setColor(Color.rgb(155,190,215));p.setTextSize(h*.017f);c.drawText("ROBÔ  "+robotModelNames[robotModelIndex],pc,h*.555f,p);c.drawText("CONTROLE  "+controlNames[controlMode],pc,h*.585f,p);
 
-        float cx=(pl+pr)/2, cy=h*.76f, rad=Math.min(pr-pl,h*.20f)*.28f;
+        float cx=pc, cy=h*.79f, rad=Math.min(pr-pl,h*.18f)*.27f;
         if(controlMode==0){
-            p.setColor(Color.argb(180,18,55,88)); c.drawCircle(cx,cy,rad*1.6f,p); stroke.setColor(glow[ti]); stroke.setStrokeWidth(3); c.drawCircle(cx,cy,rad*1.6f,stroke); p.setColor(Color.argb(230,40,110,165)); c.drawCircle(cx,cy,rad*.75f,p);
+            p.setShadowLayer(18,0,0,glow[ti]);p.setColor(Color.argb(175,12,46,78));c.drawCircle(cx,cy,rad*1.7f,p);p.clearShadowLayer();stroke.setColor(glow[ti]);stroke.setStrokeWidth(3);c.drawCircle(cx,cy,rad*1.7f,stroke);p.setColor(Color.argb(235,45,125,185));c.drawCircle(cx,cy,rad*.80f,p);
+            p.setColor(Color.rgb(180,220,245));p.setTextSize(h*.016f);c.drawText("ARRASTE",cx,h*.92f,p);
         }else if(controlMode==2){
-            float s=rad*1.1f; leftBtn.set(cx-s*2.1f,cy-s*.55f,cx-s*.9f,cy+s*.55f); rightBtn.set(cx+s*.9f,cy-s*.55f,cx+s*2.1f,cy+s*.55f); upBtn.set(cx-s*.55f,cy-s*2.1f,cx+s*.55f,cy-s*.9f); downBtn.set(cx-s*.55f,cy+s*.9f,cx+s*.55f,cy+s*2.1f); drawControl(c,leftBtn,0);drawControl(c,rightBtn,1);drawControl(c,upBtn,2);drawControl(c,downBtn,3);
+            float ss=rad*1.05f;leftBtn.set(cx-ss*2.05f,cy-ss*.55f,cx-ss*.85f,cy+ss*.55f);rightBtn.set(cx+ss*.85f,cy-ss*.55f,cx+ss*2.05f,cy+ss*.55f);upBtn.set(cx-ss*.55f,cy-ss*2.05f,cx+ss*.55f,cy-ss*.85f);downBtn.set(cx-ss*.55f,cy+ss*.85f,cx+ss*.55f,cy+ss*2.05f);drawControl(c,leftBtn,0);drawControl(c,rightBtn,1);drawControl(c,upBtn,2);drawControl(c,downBtn,3);
         }else{
-            p.setColor(Color.argb(150,30,75,110)); c.drawRoundRect(new RectF(pl+12,h*.66f,pr-12,h*.87f),18,18,p); p.setColor(Color.WHITE); p.setTextSize(h*.021f); c.drawText(controlMode==1?"DESLIZE PARA MOVER":"TOQUE NO CAMINHO",cx,h*.775f,p);
+            RectF hint=new RectF(pl+w*.014f,h*.70f,pr-w*.014f,h*.88f);p.setColor(Color.rgb(14,45,72));c.drawRoundRect(hint,16,16,p);stroke.setColor(Color.argb(90,Color.red(glow[ti]),Color.green(glow[ti]),Color.blue(glow[ti])));stroke.setStrokeWidth(1.5f);c.drawRoundRect(hint,16,16,stroke);p.setColor(Color.WHITE);p.setTextSize(h*.019f);c.drawText(controlMode==1?"DESLIZE NA TELA":"TOQUE NO CAMINHO",pc,h*.80f,p);
         }
 
         if(paused){
@@ -442,13 +496,110 @@ class RoboMazeView extends View {
         }
     }
 
+    private void drawFloorTile(Canvas c,float x,float y,float cell,int base,int accent,int ti,int r,int col){
+        int dark=mix(base,Color.BLACK,.16f), light=mix(base,Color.WHITE,.10f);
+        p.setColor(dark); c.drawRect(x,y,x+cell+1,y+cell+1,p);
+        p.setColor(base); c.drawRoundRect(new RectF(x+cell*.045f,y+cell*.045f,x+cell*.955f,y+cell*.955f),cell*.055f,cell*.055f,p);
+        // top and left bevels
+        p.setColor(light); c.drawRect(x+cell*.07f,y+cell*.07f,x+cell*.93f,y+cell*.115f,p); c.drawRect(x+cell*.07f,y+cell*.07f,x+cell*.115f,y+cell*.93f,p);
+        p.setColor(mix(base,Color.BLACK,.28f)); c.drawRect(x+cell*.07f,y+cell*.885f,x+cell*.93f,y+cell*.93f,p); c.drawRect(x+cell*.885f,y+cell*.07f,x+cell*.93f,y+cell*.93f,p);
+        // panel seams / vents vary by coordinate and world
+        int code=(r*31+col*17+level*7+ti*13)%12;
+        if(code==0||code==7){
+            p.setColor(Color.argb(95,Color.red(accent),Color.green(accent),Color.blue(accent)));
+            c.drawRoundRect(new RectF(x+cell*.24f,y+cell*.44f,x+cell*.76f,y+cell*.54f),cell*.03f,cell*.03f,p);
+        } else if(code==3){
+            stroke.setStrokeWidth(Math.max(1,cell*.025f)); stroke.setColor(Color.argb(80,210,235,255));
+            for(int k=0;k<3;k++) c.drawLine(x+cell*(.28f+k*.16f),y+cell*.30f,x+cell*(.28f+k*.16f),y+cell*.70f,stroke);
+        }
+        // screws
+        p.setColor(Color.argb(120,190,215,230)); float rr=Math.max(1.2f,cell*.022f);
+        c.drawCircle(x+cell*.14f,y+cell*.14f,rr,p); c.drawCircle(x+cell*.86f,y+cell*.86f,rr,p);
+    }
+
+    private void drawWorldDecor(Canvas c,float left,float top,float cell,int ti,int accent){
+        // deterministic scene props so every world looks distinct without blocking movement
+        for(int r=1;r<rows-1;r++) for(int cc=1;cc<cols-1;cc++){
+            int code=(r*43+cc*29+level*11)%97; if(code>3) continue;
+            float x=left+(cc+.5f)*cell,y=top+(r+.5f)*cell;
+            if(ti==0){ // lab: cyan conduits
+                stroke.setColor(Color.argb(120,0,230,255));stroke.setStrokeWidth(Math.max(2,cell*.045f));c.drawLine(x-cell*.20f,y,x+cell*.20f,y,stroke);
+            } else if(ti==1){ // ruins: cracks
+                stroke.setColor(Color.argb(110,255,165,70));stroke.setStrokeWidth(Math.max(1,cell*.025f));Path q=new Path();q.moveTo(x-cell*.20f,y-cell*.18f);q.lineTo(x-cell*.05f,y);q.lineTo(x+cell*.08f,y-cell*.05f);q.lineTo(x+cell*.20f,y+cell*.18f);c.drawPath(q,stroke);
+            } else if(ti==2){ // ice: crystalline shine
+                p.setColor(Color.argb(80,170,245,255));Path q=new Path();q.moveTo(x,y-cell*.25f);q.lineTo(x-cell*.16f,y);q.lineTo(x,y+cell*.25f);q.lineTo(x+cell*.16f,y);q.close();c.drawPath(q,p);
+            } else if(ti==3){ // volcano: lava slit
+                p.setShadowLayer(cell*.12f,0,0,Color.RED);p.setColor(Color.argb(165,255,80,20));c.drawRoundRect(new RectF(x-cell*.24f,y-cell*.04f,x+cell*.24f,y+cell*.04f),cell*.03f,cell*.03f,p);p.clearShadowLayer();
+            } else if(ti==4){ // factory: hazard stripe
+                p.setColor(Color.argb(100,255,205,40)); for(int k=-2;k<=2;k+=2) c.drawRect(x+cell*k*.06f,y-cell*.22f,x+cell*(k*.06f+.05f),y+cell*.22f,p);
+            } else { // void: purple energy node
+                p.setShadowLayer(cell*.18f,0,0,accent);p.setColor(Color.argb(130,Color.red(accent),Color.green(accent),Color.blue(accent)));c.drawCircle(x,y,cell*.09f,p);p.clearShadowLayer();
+            }
+        }
+    }
+
+    private void drawWallV(Canvas c,float x,float y1,float y2,float wt,int base,int accent,int ti,int r,int col){
+        float depth=wt*.42f;
+        p.setColor(mix(base,Color.BLACK,.55f)); c.drawRoundRect(new RectF(x-wt*.56f+depth,y1+depth,x+wt*.56f+depth,y2+depth),wt*.16f,wt*.16f,p);
+        LinearGradient g=new LinearGradient(x-wt*.55f,y1,x+wt*.55f,y1,mix(base,Color.WHITE,.26f),base,Shader.TileMode.CLAMP);p.setShader(g);c.drawRoundRect(new RectF(x-wt*.56f,y1,x+wt*.56f,y2),wt*.16f,wt*.16f,p);p.setShader(null);
+        // segmented armor plates
+        stroke.setStrokeWidth(Math.max(1.2f,wt*.06f));stroke.setColor(Color.argb(90,230,245,255));c.drawLine(x-wt*.48f,(y1+y2)/2,x+wt*.48f,(y1+y2)/2,stroke);
+        p.setColor(Color.argb(180,Color.red(accent),Color.green(accent),Color.blue(accent)));c.drawRoundRect(new RectF(x-wt*.11f,y1+wt*.18f,x+wt*.11f,y2-wt*.18f),wt*.08f,wt*.08f,p);
+        p.setColor(Color.argb(150,220,230,235));c.drawCircle(x-wt*.35f,y1+wt*.28f,Math.max(1.2f,wt*.055f),p);c.drawCircle(x+wt*.35f,y2-wt*.28f,Math.max(1.2f,wt*.055f),p);
+    }
+
+    private void drawWallH(Canvas c,float x1,float x2,float y,float wt,int base,int accent,int ti,int r,int col){
+        float depth=wt*.42f;
+        p.setColor(mix(base,Color.BLACK,.55f)); c.drawRoundRect(new RectF(x1+depth,y-wt*.56f+depth,x2+depth,y+wt*.56f+depth),wt*.16f,wt*.16f,p);
+        LinearGradient g=new LinearGradient(x1,y-wt*.55f,x1,y+wt*.55f,mix(base,Color.WHITE,.30f),base,Shader.TileMode.CLAMP);p.setShader(g);c.drawRoundRect(new RectF(x1,y-wt*.56f,x2,y+wt*.56f),wt*.16f,wt*.16f,p);p.setShader(null);
+        stroke.setStrokeWidth(Math.max(1.2f,wt*.06f));stroke.setColor(Color.argb(90,230,245,255));c.drawLine((x1+x2)/2,y-wt*.48f,(x1+x2)/2,y+wt*.48f,stroke);
+        p.setColor(Color.argb(180,Color.red(accent),Color.green(accent),Color.blue(accent)));c.drawRoundRect(new RectF(x1+wt*.18f,y-wt*.11f,x2-wt*.18f,y+wt*.11f),wt*.08f,wt*.08f,p);
+        p.setColor(Color.argb(150,220,230,235));c.drawCircle(x1+wt*.28f,y-wt*.35f,Math.max(1.2f,wt*.055f),p);c.drawCircle(x2-wt*.28f,y+wt*.35f,Math.max(1.2f,wt*.055f),p);
+    }
+
+    private void drawCoin(Canvas c,float x,float y,float cell){
+        float pulse=1f+(float)Math.sin(System.currentTimeMillis()/180.0)*.08f; float rr=cell*.16f*pulse;
+        p.setShadowLayer(cell*.25f,0,0,Color.rgb(255,180,0));p.setColor(Color.rgb(255,183,18));c.drawCircle(x,y,rr,p);p.clearShadowLayer();
+        p.setColor(Color.rgb(255,231,94));c.drawCircle(x-cell*.035f,y-cell*.045f,rr*.53f,p);stroke.setColor(Color.rgb(180,95,0));stroke.setStrokeWidth(Math.max(1.5f,cell*.025f));c.drawCircle(x,y,rr*.76f,stroke);
+        p.setTextAlign(Paint.Align.CENTER);p.setTypeface(Typeface.DEFAULT_BOLD);p.setTextSize(cell*.15f);p.setColor(Color.rgb(155,80,0));c.drawText("★",x,y+cell*.052f,p);
+    }
+
+    private void drawPortal(Canvas c,float x,float y,float cell,int color,boolean open){
+        float a=(System.currentTimeMillis()%1400)/1400f;float r1=cell*(.20f+.07f*a),r2=cell*(.31f-.05f*a);
+        p.setShadowLayer(cell*.35f,0,0,color);p.setColor(Color.argb(open?190:130,Color.red(color),Color.green(color),Color.blue(color)));c.drawCircle(x,y,cell*.26f,p);p.clearShadowLayer();
+        stroke.setColor(Color.WHITE);stroke.setStrokeWidth(Math.max(2,cell*.035f));c.drawCircle(x,y,r1,stroke);stroke.setColor(color);stroke.setStrokeWidth(Math.max(2,cell*.06f));c.drawCircle(x,y,r2,stroke);
+        p.setColor(Color.argb(open?230:160,Color.red(color),Color.green(color),Color.blue(color)));c.drawCircle(x,y,cell*.09f,p);
+    }
+
+    private void drawScannerCone(Canvas c,float x,float y,float cell,int kind){
+        float ang=((System.currentTimeMillis()/900.0)+(kind*1.7))%(Math.PI*2);float len=cell*.95f,spread=.36f;
+        Path q=new Path();q.moveTo(x,y);q.lineTo(x+(float)Math.cos(ang-spread)*len,y+(float)Math.sin(ang-spread)*len);q.lineTo(x+(float)Math.cos(ang+spread)*len,y+(float)Math.sin(ang+spread)*len);q.close();p.setColor(Color.argb(38,255,55,55));c.drawPath(q,p);
+    }
+
+    private void playFx(int type){
+        if(!soundOn || fxTone==null) return;
+        if(type==1) fxTone.startTone(ToneGenerator.TONE_PROP_BEEP,90);
+        else if(type==2) fxTone.startTone(ToneGenerator.TONE_PROP_NACK,130);
+        else if(type==3) fxTone.startTone(ToneGenerator.TONE_PROP_ACK,220);
+    }
+
     private boolean isHazard(int r,int c){
         if(level<7 || (r==playerR&&c==playerC) || (r==exitR&&c==exitC)) return false;
         return ((r*37+c*19+level*13)%41)==0;
     }
 
+    private void drawMiniMap(Canvas c, RectF r, int accent){
+        p.setColor(Color.rgb(3,13,26)); c.drawRoundRect(r,14,14,p); stroke.setColor(Color.argb(120,Color.red(accent),Color.green(accent),Color.blue(accent)));stroke.setStrokeWidth(1.5f);c.drawRoundRect(r,14,14,stroke);
+        float pad=8, cw=(r.width()-pad*2)/cols, ch=(r.height()-pad*2)/rows;
+        stroke.setStrokeWidth(Math.max(1f,Math.min(cw,ch)*.12f)); stroke.setColor(Color.argb(135,125,180,215));
+        for(int rr=0;rr<rows;rr++) for(int cc=0;cc<=cols;cc++) if(vWalls[rr][cc]){float x=r.left+pad+cc*cw,y1=r.top+pad+rr*ch; c.drawLine(x,y1,x,y1+ch,stroke);}
+        for(int rr=0;rr<=rows;rr++) for(int cc=0;cc<cols;cc++) if(hWalls[rr][cc]){float y=r.top+pad+rr*ch,x1=r.left+pad+cc*cw; c.drawLine(x1,y,x1+cw,y,stroke);}
+        float px=r.left+pad+(playerC+.5f)*cw,py=r.top+pad+(playerR+.5f)*ch; p.setColor(accent);c.drawCircle(px,py,Math.max(2.5f,Math.min(cw,ch)*.35f),p);
+        p.setColor(remainingCoins==0?Color.GREEN:Color.RED);c.drawCircle(r.left+pad+(exitC+.5f)*cw,r.top+pad+(exitR+.5f)*ch,Math.max(2f,Math.min(cw,ch)*.28f),p);
+    }
+
     private void drawRobot(Canvas c,float x,float y,float cell){
-        int body=robotColors[robotColorIndex]; float s=cell*.34f;
+        int body=robotColors[robotColorIndex]; float s=cell*.43f;
         p.setShadowLayer(cell*.18f,0,cell*.06f,Color.BLACK); p.setColor(Color.argb(150,0,0,0)); c.drawOval(new RectF(x-s*.9f,y+s*.48f,x+s*.9f,y+s*.92f),p); p.clearShadowLayer();
         switch(robotModelIndex){
             case 1: // TITAN
@@ -471,7 +622,7 @@ class RoboMazeView extends View {
     }
 
     private void drawEnemy(Canvas c,float x,float y,float cell,int kind){
-        int[] ec={Color.rgb(245,64,64),Color.rgb(180,70,235),Color.rgb(30,205,235),Color.rgb(255,145,25),Color.rgb(90,220,95)}; int co=ec[kind%ec.length]; float s=cell*.31f;
+        int[] ec={Color.rgb(245,64,64),Color.rgb(180,70,235),Color.rgb(30,205,235),Color.rgb(255,145,25),Color.rgb(90,220,95)}; int co=ec[kind%ec.length]; float s=cell*.36f;
         p.setShadowLayer(cell*.18f,0,0,co); p.setColor(co); c.drawRoundRect(new RectF(x-s*.72f,y-s*.58f,x+s*.72f,y+s*.58f),s*.22f,s*.22f,p); p.clearShadowLayer();
         p.setColor(Color.rgb(30,18,25)); c.drawRoundRect(new RectF(x-s*.50f,y-s*.30f,x+s*.50f,y+s*.05f),s*.12f,s*.12f,p);
         p.setColor(Color.WHITE); c.drawCircle(x-s*.19f,y-s*.12f,s*.09f,p); c.drawCircle(x+s*.19f,y-s*.12f,s*.09f,p); p.setColor(Color.RED); c.drawCircle(x-s*.19f,y-s*.12f,s*.045f,p); c.drawCircle(x+s*.19f,y-s*.12f,s*.045f,p);
@@ -491,8 +642,8 @@ class RoboMazeView extends View {
     private void movePlayer(int dr,int dc){
         if(paused)return; int nr=playerR+dr,nc=playerC+dc; if(!canMove(playerR,playerC,nr,nc))return;
         playerR=nr;playerC=nc; score+=5;
-        if(isHazard(playerR,playerC)){ lives--; score=Math.max(0,score-75); playerR=startR; playerC=startC; if(lives<=0){ saveRecords(); screen=Screen.MENU; } invalidate(); return; }
-        if(coins[playerR][playerC]){coins[playerR][playerC]=false;remainingCoins--;score+=100;}
+        if(isHazard(playerR,playerC)){ playFx(2); lives--; score=Math.max(0,score-75); playerR=startR; playerC=startC; if(lives<=0){ saveRecords(); screen=Screen.MENU; } invalidate(); return; }
+        if(coins[playerR][playerC]){coins[playerR][playerC]=false;remainingCoins--;score+=100; playFx(1);}
         checkCollision();
         if(playerR==exitR&&playerC==exitC&&remainingCoins==0) completeLevel();
         invalidate();
@@ -509,9 +660,10 @@ class RoboMazeView extends View {
         checkCollision(); invalidate();
     }
     private void checkCollision(){
-        for(Enemy e:enemies) if(e.r==playerR&&e.c==playerC){ lives--; score=Math.max(0,score-100); playerR=startR;playerC=startC; if(lives<=0){ saveRecords(); screen=Screen.MENU; } return; }
+        for(Enemy e:enemies) if(e.r==playerR&&e.c==playerC){ playFx(2); lives--; score=Math.max(0,score-100); playerR=startR;playerC=startC; if(lives<=0){ saveRecords(); screen=Screen.MENU; } return; }
     }
     private void completeLevel(){
+        playFx(3);
         score+=500+level*50; bestLevel=Math.max(bestLevel,level); highScore=Math.max(highScore,score); if(level<30)unlocked=Math.max(unlocked,level+1); saveRecords();
         if(level<30) startLevel(level+1); else screen=Screen.RECORDS;
     }
@@ -520,22 +672,31 @@ class RoboMazeView extends View {
     @Override public boolean onTouchEvent(MotionEvent event){
         float x=event.getX(),y=event.getY(); float h=getHeight(),w=getWidth();
         if(screen==Screen.MENU && event.getAction()==MotionEvent.ACTION_UP){
-            if(y>h*.485f&&y<h*.565f){score=0;startLevel(Math.min(unlocked,30));}
-            else if(y>h*.575f&&y<h*.655f){screen=Screen.LEVELS;invalidate();}
-            else if(y>h*.665f&&y<h*.745f){screen=Screen.RECORDS;invalidate();}
-            else if(y>h*.755f&&y<h*.835f){screen=Screen.SETTINGS;invalidate();}
+            if(x>w*.47f){
+                float top=h*.07f, bh=h*.105f, gap=h*.024f, y0=top+h*.155f;
+                if(y>=y0&&y<=y0+bh){score=0;startLevel(Math.min(unlocked,30));}
+                else if(y>=y0+bh+gap&&y<=y0+2*bh+gap){screen=Screen.LEVELS;invalidate();}
+                else if(y>=y0+2*(bh+gap)&&y<=y0+3*bh+2*gap){screen=Screen.RECORDS;invalidate();}
+                else if(y>=y0+3*(bh+gap)&&y<=y0+4*bh+3*gap){screen=Screen.SETTINGS;invalidate();}
+            }
             return true;
         }
         if((screen==Screen.LEVELS||screen==Screen.RECORDS||screen==Screen.SETTINGS)&&event.getAction()==MotionEvent.ACTION_UP&&y<h*.12f&&x<w*.20f){screen=Screen.MENU;invalidate();return true;}
         if(screen==Screen.SETTINGS && event.getAction()==MotionEvent.ACTION_UP){
-            for(int i=0;i<4;i++){ float cy=h*(.27f+i*.105f); if(y>cy-h*.045f&&y<cy+h*.045f){controlMode=i;saveRecords();invalidate();return true;} }
-            if(y>h*.70f&&y<h*.785f){robotModelIndex=(robotModelIndex+1)%robotModelNames.length;saveRecords();invalidate();return true;}
-            if(y>h*.785f&&y<h*.86f){robotColorIndex=(robotColorIndex+1)%robotColors.length;saveRecords();invalidate();return true;}
-            if(y>h*.855f&&y<h*.94f){soundOn=!soundOn;if(musicPlayer!=null){if(soundOn){if(!musicPlayer.isPlaying())musicPlayer.start();}else if(musicPlayer.isPlaying())musicPlayer.pause();}saveRecords();invalidate();return true;}
+            float left=w*.055f, mid=w*.50f, right=w*.945f, top=h*.16f;
+            if(x<mid){
+                for(int i=0;i<4;i++){ float yy=top+h*(.13f+i*.13f); if(y>=yy&&y<=yy+h*.095f){controlMode=i;saveRecords();invalidate();return true;} }
+            } else {
+                if(y>=top+h*.29f&&y<=top+h*.42f){robotModelIndex=(robotModelIndex+1)%robotModelNames.length;saveRecords();invalidate();return true;}
+                if(y>=top+h*.445f&&y<=top+h*.545f){
+                    float first=mid+w*.018f+w*.045f, span=(right-(mid+w*.018f)-w*.09f); int idx=Math.round((x-first)/(span/(robotColors.length-1))); robotColorIndex=Math.max(0,Math.min(robotColors.length-1,idx));saveRecords();invalidate();return true;
+                }
+                if(y>=top+h*.57f&&y<=top+h*.70f){soundOn=!soundOn;if(musicPlayer!=null){if(soundOn){if(!musicPlayer.isPlaying())musicPlayer.start();}else if(musicPlayer.isPlaying())musicPlayer.pause();}saveRecords();invalidate();return true;}
+            }
         }
         if(screen==Screen.LEVELS && event.getAction()==MotionEvent.ACTION_UP){
-            int columns=5; float gap=w*.025f, cell=(w-gap*(columns+1))/columns, top=h*.18f;
-            for(int i=1;i<=30;i++){int rr=(i-1)/columns,cc=(i-1)%columns;float bx=gap+cc*(cell+gap),by=top+rr*(cell+gap);if(x>=bx&&x<=bx+cell&&y>=by&&y<=by+cell&&i<=unlocked){score=0;startLevel(i);return true;}}
+            int columns=10; float gap=w*.012f, left=w*.055f, right=w*.945f; float cell=(right-left-gap*(columns-1))/columns; float top=h*.22f;
+            for(int i=1;i<=30;i++){ int rr=(i-1)/columns,cc=(i-1)%columns; float bx=left+cc*(cell+gap),by=top+rr*(cell+gap+h*.030f); if(x>=bx&&x<=bx+cell&&y>=by&&y<=by+cell*.78f&&i<=unlocked){score=0;startLevel(i);return true;} }
         }
         if(screen!=Screen.GAME)return true;
         if(event.getAction()==MotionEvent.ACTION_DOWN){

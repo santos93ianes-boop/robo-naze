@@ -1,24 +1,19 @@
-# ROBO MAZE — SURREAL V5
+# ROBO MAZE V7 — WORLDS
 
-Esta versão reconstrói a partida real do jogo. A imagem aprovada não é usada como um simples fundo: o labirinto, robôs, inimigos, moedas, portal e obstáculos são desenhados e jogados em tempo real.
+Versão reconstruída com foco no labirinto visual e na variedade de cenários.
 
-## O que existe nesta versão
+## Principais mudanças da V7
+- Labirinto modular com paredes 3D: profundidade, bevel, parafusos, painéis e faixas neon.
+- Piso tecnológico com placas metálicas, respiros, emendas e detalhes temáticos.
+- 6 mundos visuais: Lab Neon, Ruínas Cyber, Estação Gelo, Núcleo Vulcão, Fábrica Quântica e Reator Void.
+- Salas abertas incorporadas aos labirintos para quebrar a repetição de corredores estreitos.
+- Mapas diferentes por fase, com atalhos e rotas extras progressivas.
+- Portal animado, moedas pulsantes e cones de varredura dos inimigos.
+- Robôs, cores e 4 controles mantidos.
+- Música de suspense mantida + efeitos de moeda, dano e conclusão.
+- Correção da seleção de fases por toque.
 - 30 fases com dificuldade progressiva.
-- 6 ambientes visuais: Lab Neon, Ruínas Cyber, Estação Gelo, Núcleo Vulcão, Fábrica Quântica e Reator Void.
-- Labirintos maiores, diferentes por fase e com rotas extras nas fases avançadas.
-- 6 modelos de robô: Nova, Titan, Pulse, Scout, Orbit e Nexus.
-- 8 cores de robô.
-- 4 tipos de controle: joystick, deslizar, setas e toque.
-- Moedas, portal de saída, inimigos progressivamente mais rápidos e armadilhas energizadas.
-- HUD tecnológico, paredes metálicas com profundidade, luzes neon e efeitos de brilho.
-- Música de suspense em loop.
-- Recorde, desbloqueio de níveis e configurações salvas no aparelho.
 
-## Como gerar o APK no GitHub
-1. Extraia este ZIP.
-2. Envie TODO o conteúdo para a raiz de um repositório GitHub vazio.
-3. A pasta `.github` contém o workflow pronto. Caso ela fique oculta, use também a cópia `WORKFLOW-main.yml`.
-4. Abra **Actions** → **ROBO MAZE - GERAR APK** → **Run workflow**.
-5. Quando ficar verde, baixe o artefato **RoboMaze-APK**.
-
-O GitHub apenas compila; a lógica e a interface do jogo estão dentro deste projeto.
+## GitHub
+Suba todo o conteúdo na raiz do repositório. O workflow está em `.github/workflows/main.yml`.
+Também existe `WORKFLOW-main.yml` visível como cópia.
